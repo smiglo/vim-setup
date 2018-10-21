@@ -1,0 +1,81 @@
+76c76
+<         \ "] DEBUGGING STRING ==> "
+---
+>         \ "] TB] DbgTrace ==> "
+79a80,95
+> function! s:debugSuffixStr(lang)
+>   let l:suffix = "TB] Dbg"
+>   let l:langs = {
+>     \ "c"            : " //",
+>     \ "java"         : " //",
+>     \ "javascript"   : " //",
+>     \ "vim"          : " | \"",
+>     \ "shell"        : " #",
+>     \ }
+>   let l:debug_str = ""
+>   if l:langs[a:lang] == ''
+>     return ""
+>   endif
+>   return l:langs[a:lang] . " " . l:suffix
+> endfunc
+> 
+117,118c133,134
+<     let l:debugStr = "echo \"" . s:debugPrefixStr() . s:debugCounter . "\""
+<     :put=l:debugStr
+---
+>     let l:debugStr = "echo \"" . s:debugPrefixStr() . s:debugCounter . "\"" . s:debugSuffixStr("vim")
+>     :put!=l:debugStr
+123c139
+<     let l:debugStr = "printf(\"" . s:debugPrefixStr() . s:debugCounter . "\");"
+---
+>     let l:debugStr = "fprintf(stderr, \"" . s:debugPrefixStr() . s:debugCounter . "\\n\");" . s:debugSuffixStr("c")
+130c146
+<     :put=l:debugStr
+---
+>     :put!=l:debugStr
+135,136c151,152
+<     let l:debugStr = "print(\"" . s:debugPrefixStr() . s:debugCounter . "\")"
+<     :put=l:debugStr
+---
+>     let l:debugStr = "print(\"" . s:debugPrefixStr() . s:debugCounter . "\")" . s:debugSuffixStr("python")
+>     :put!=l:debugStr
+141,142c157,158
+<     let l:debugStr = "putStrLn \"" . s:debugPrefixStr() . s:debugCounter . "\""
+<     :put=l:debugStr
+---
+>     let l:debugStr = "putStrLn \"" . s:debugPrefixStr() . s:debugCounter . "\"" . s:debugSuffixStr("haskell")
+>     :put!=l:debugStr
+147,148c163,164
+<     let l:debugStr = "puts \"" . s:debugPrefixStr() . s:debugCounter . "\""
+<     :put=l:debugStr
+---
+>     let l:debugStr = "puts \"" . s:debugPrefixStr() . s:debugCounter . "\"" . s:debugSuffixStr("ruby")
+>     :put!=l:debugStr
+153,154c169,170
+<     let l:debugStr = "echo \"" . s:debugPrefixStr() . s:debugCounter . "\";"
+<     :put=l:debugStr
+---
+>     let l:debugStr = "echo \"" . s:debugPrefixStr() . s:debugCounter . "\";" . s:debugSuffixStr("shell")
+>     :put!=l:debugStr
+164,165c180,181
+<     let l:debugStr = "PRINT *, \"" . s:debugPrefixStr() . s:debugCounter . "\""
+<     :put=l:debugStr
+---
+>     let l:debugStr = "PRINT *, \"" . s:debugPrefixStr() . s:debugCounter . "\"" . s:debugSuffixStr("fortran")
+>     :put!=l:debugStr
+170,171c186,187
+<     let l:debugStr = "System.out.println(\"" . s:debugPrefixStr() . s:debugCounter . "\");"
+<     :put=l:debugStr
+---
+>     let l:debugStr = "System.out.println(\"" . s:debugPrefixStr() . s:debugCounter . "\");" . s:debugSuffixStr("java")
+>     :put!=l:debugStr
+177,178c193,194
+<     let l:debugStr = "<script>alert( " . s:debugPrefixStr()  . s:debugCounter . "); </script>"
+<     :put=l:debugStr
+---
+>     let l:debugStr = "<script>alert( " . s:debugPrefixStr()  . s:debugCounter . "); </script>" . s:debugSuffixStr("javascript")
+>     :put!=l:debugStr
+203c219
+<     return getcurpos()[1] + 2
+---
+>     return getcurpos()[1] + 1

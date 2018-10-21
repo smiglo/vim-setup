@@ -1,0 +1,107 @@
+[submodule "git-plugins/vim-fugitive"]
+	path = git-plugins/vim-fugitive
+	url = https://github.com/tpope/vim-fugitive.git
+[submodule "git-plugins/nerdtree"]
+	path = git-plugins/nerdtree
+	url = https://github.com/scrooloose/nerdtree.git
+[submodule "git-plugins/tabline.vim"]
+	path = git-plugins/tabline.vim
+	url = https://github.com/mkitt/tabline.vim.git
+[submodule "git-plugins/ack.vim"]
+	path = git-plugins/ack.vim
+	url = https://github.com/mileszs/ack.vim.git
+[submodule "git-plugins/bufexplorer"]
+	path = git-plugins/bufexplorer
+	url = https://github.com/jlanzarotta/bufexplorer.git
+[submodule "git-plugins/DirDiff.vim"]
+	path = git-plugins/DirDiff.vim
+	url = https://github.com/vim-scripts/DirDiff.vim.git
+[submodule "git-plugins/tabular"]
+	path = git-plugins/tabular
+	url = https://github.com/godlygeek/tabular.git
+[submodule "git-plugins/tagexplorer.vim"]
+	path = git-plugins/tagexplorer.vim
+	url = https://github.com/vim-scripts/tagexplorer.vim.git
+[submodule "git-plugins/vim-markdown"]
+	path = git-plugins/vim-markdown
+	url = git@gitlab.com:to.masz.blasz.123-my/vim-markdown.git
+	# url = https://github.com/plasticboy/vim-markdown.git
+[submodule "git-plugins/vim-signature"]
+	path = git-plugins/vim-signature
+	url = https://github.com/kshenoy/vim-signature.git
+[submodule "git-plugins/vim-colors-solarized"]
+	path = git-plugins/vim-colors-solarized
+	url = https://github.com/altercation/vim-colors-solarized.git
+[submodule "git-plugins/rust-cute-vim"]
+	path = git-plugins/rust-cute-vim
+	url = https://github.com/ticki/rust-cute-vim.git
+[submodule "git-plugins/ctrlp-fuzzy"]
+	path = git-plugins/ctrlp-fuzzy
+	url = https://github.com/ctrlpvim/ctrlp.vim.git
+[submodule "git-plugins/scratch"]
+	path = git-plugins/scratch
+	url = https://github.com/mtth/scratch.vim.git
+[submodule "git-plugins/cmake.vim"]
+	path = git-plugins/cmake.vim
+	url = https://github.com/jalcine/cmake.vim.git
+[submodule "git-plugins/vim-maximizer"]
+	path = git-plugins/vim-maximizer
+	url = https://github.com/szw/vim-maximizer.git
+[submodule "git-plugins/gundo.vim"]
+	path = git-plugins/gundo.vim
+	url = https://github.com/sjl/gundo.vim.git
+[submodule "git-plugins/vim-SpellCheck"]
+	path = git-plugins/vim-SpellCheck
+	url = https://github.com/inkarkat/vim-SpellCheck.git
+[submodule "git-plugins/fzf.vim"]
+	path = git-plugins/fzf.vim
+	url = https://github.com/junegunn/fzf.vim.git
+	branch = master
+[submodule "git-plugins/clever-f.vim"]
+	path = git-plugins/clever-f.vim
+	url = https://github.com/rhysd/clever-f.vim.git
+[submodule "git-plugins/vim-bitbake"]
+	path = git-plugins/vim-bitbake
+	url = https://github.com/kergoth/vim-bitbake.git
+[submodule "git-plugins/vim-game-code-break"]
+	path = git-plugins/vim-game-code-break
+	url = https://github.com/johngrib/vim-game-code-break.git
+[submodule "git-plugins/vim-addon-mw-utils"]
+	path = git-plugins/vim-addon-mw-utils
+	url = https://github.com/MarcWeber/vim-addon-mw-utils.git
+[submodule "git-plugins/vimwiki"]
+	path = git-plugins/vimwiki
+	url = https://github.com/vimwiki/vimwiki.git
+[submodule "git-plugins/vim-debugstring"]
+	path = git-plugins/vim-debugstring
+	url = https://github.com/bergercookie/vim-debugstring.git
+[submodule "git-plugins/syntastic"]
+	path = git-plugins/syntastic
+	url = https://github.com/vim-syntastic/syntastic.git
+[submodule "git-plugins/notational-fzf-vim"]
+	path = git-plugins/notational-fzf-vim
+	url = https://github.com/Alok/notational-fzf-vim.git
+[submodule "git-plugins/Conque-GDB"]
+	path = git-plugins/Conque-GDB
+	url = https://github.com/smiglo/Conque-GDB.git
+[submodule "git-plugins/vim-freemarker"]
+	path = git-plugins/vim-freemarker
+	url = https://github.com/andreshazard/vim-freemarker.git
+[submodule "git-plugins/cheat.sh-vim"]
+	path = git-plugins/cheat.sh-vim
+	url = https://github.com/dbeniamine/cheat.sh-vim.git
+[submodule "git-plugins/vim-buffest"]
+	path = git-plugins/vim-buffest
+	url = https://github.com/rbong/vim-buffest.git
+[submodule "git-plugins/vim-autotag"]
+	path = git-plugins/vim-autotag
+	url = https://github.com/craigemery/vim-autotag.git
+[submodule "git-plugins/YouCompleteMe"]
+	path = git-plugins/YouCompleteMe
+	url = https://github.com/Valloric/YouCompleteMe.git
+[submodule "git-plugins/gruvbox"]
+	path = git-plugins/gruvbox
+	url = https://github.com/morhetz/gruvbox.git
+[submodule "git-plugins/clang_complete"]
+	path = git-plugins/clang_complete
+	url = https://github.com/Rip-Rip/clang_complete.git

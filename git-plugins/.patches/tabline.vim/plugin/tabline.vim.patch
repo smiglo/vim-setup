@@ -1,0 +1,133 @@
+13c13
+< if (exists("g:loaded_tabline_vim") && g:loaded_tabline_vim) || &cp
+---
+> if (exists("g:tabline_loaded") && g:tabline_loaded) || &cp
+16,26c16,19
+< let g:loaded_tabline_vim = 1
+< 
+< function! Tabline()
+<   let s = ''
+<   for i in range(tabpagenr('$'))
+<     let tab = i + 1
+<     let winnr = tabpagewinnr(tab)
+<     let buflist = tabpagebuflist(tab)
+<     let bufnr = buflist[winnr - 1]
+<     let bufname = bufname(bufnr)
+<     let bufmodified = getbufvar(bufnr, "&mod")
+---
+> let g:tabline_loaded = 1
+> if !exists("g:tabline_path")
+>   let g:tabline_path = 'full'
+> endif
+28,31c21,27
+<     let s .= '%' . tab . 'T'
+<     let s .= (tab == tabpagenr() ? '%#TabLineSel#' : '%#TabLine#')
+<     let s .= ' ' . tab .':'
+<     let s .= (bufname != '' ? '['. fnamemodify(bufname, ':t') . '] ' : '[No Name] ')
+---
+> function! s:get_entry(tab)
+>   let winnr = tabpagewinnr(a:tab)
+>   let wincnt = tabpagewinnr(a:tab, '$')
+>   let buflist = tabpagebuflist(a:tab)
+>   let bufnr = buflist[winnr - 1]
+>   let bufname = bufname(bufnr)
+>   let bufmodified = getbufvar(bufnr, "&mod")
+33,34c29,49
+<     if bufmodified
+<       let s .= '[+] '
+---
+>   let e = ' ' . a:tab
+>   if wincnt > 1
+>     let e .= '|' . wincnt
+>   endif
+>   if bufmodified
+>     let e .= '+'
+>   else
+>     let e .= ':'
+>   endif
+>   if bufname != ''
+>     let max_len = 17
+>     if exists("g:tabline_max")
+>       let max_len = g:tabline_max
+>     endif
+>     let filename = fnamemodify(bufname, ':t')
+>     if max_len > 3 && strlen(filename) > max_len
+>       if $TERMINAL_HAS_EXTRA_CHARS == 'true'
+>         let filename = filename[: max_len - 1] . '…'
+>       else
+>         let filename = filename[: max_len - 3] . '...'
+>       endif
+36c51,62
+<   endfor
+---
+>     if exists("g:tabline_path") && g:tabline_path == 'short'
+>       let e .= fnamemodify(filename, ':gs/%/%%/')
+>     else
+>       let path = pathshorten(fnamemodify(bufname, ':h:~:.:gs/%/%%/'))
+>       let e .= path . '/' . fnamemodify(filename, ':gs/%/%%/')
+>     endif
+>   else
+>     let e .= '[New]'
+>   endif
+>   let e .= ' '
+>   return l:e
+> endfunction
+38,39c64,118
+<   let s .= '%#TabLineFill#'
+<   return s
+---
+> function! Tabline()
+>   let s = ''
+>   let len = 2
+>   let start = tabpagenr()
+>   let cnt = tabpagenr('$')
+>   let end_l = ' '
+>   let end_r = ' '
+>   " Selected entry {{{
+>   let e = s:get_entry(l:start)
+>   let len += strlen(l:e)
+>   let s .= '%' . l:start . 'T' . '%#TabLineSel#' . l:e
+>   let lasttab = start
+>   if exists("g:LastTab")
+>     let lasttab = g:LastTab
+>   endif
+>   " }}}
+>   " Sides  {{{
+>   let offset=1
+>   while l:len < &co && l:offset < l:cnt
+>     " Left side {{{
+>     let i = l:start - l:offset
+>     if l:i >= 1
+>       let e = s:get_entry(l:i)
+>       let len += strlen(l:e)
+>       if l:len >= &co " {{{
+>         if l:start - l:offset > 1
+>           let end_l = '<'
+>         endif
+>         if l:start + l:offset < l:cnt
+>           let end_r = '>'
+>         endif
+>         break
+>       endif " }}}
+>       let s = '%' . l:i . 'T' . (l:i == l:lasttab ? '%#TabLineLast#' : '%#TabLine#') . l:e . l:s
+>     endif " }}}
+>     " Right side {{{
+>     let i = l:start + l:offset
+>     if l:i <= l:cnt
+>       let e = s:get_entry(l:i)
+>       let len += strlen(l:e)
+>       let s = l:s . '%' . l:i . 'T' . (l:i == l:lasttab ? '%#TabLineLast#' : '%#TabLine#') . l:e
+>       if l:len >= &co " {{{
+>         if l:start - l:offset > 1
+>           let end_l = '<'
+>         endif
+>         if l:start + l:offset < l:cnt
+>           let end_r = '>'
+>         endif
+>         break
+>       endif " }}}
+>     endif " }}}
+>     let offset = l:offset + 1
+>   endwhile " }}}
+>   let s = l:end_l . l:s . "%#TabLineFill#%=" . l:end_r
+>   return l:s

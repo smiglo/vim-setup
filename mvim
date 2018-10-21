@@ -1,0 +1,185 @@
+#!/bin/bash
+# vim: fdl=0
+
+# Debugging # {{{
+debug=false
+[[ $1 == "--debug" ]] && debug=true && shift
+# }}}
+# Functions # {{{
+dbg() { # {{{
+  $debug && echo "$1" >/dev/stderr
+  return 0
+} # }}}
+checkRemoteVim() { # {{{
+  [[ -z $1 ]] && return 1
+  local list=$(exec $binary --serverlist)
+  local name=$1
+  local i=
+  for i in $list; do
+    [[ $name == $i ]] && return 0
+  done
+  return 1
+} # }}}
+# }}}
+# Check vim location # {{{
+binary=${VIM_PATH:-"/usr/bin/vim"}
+if [[ ! -x "$binary" ]]; then
+  dbg "Binary vim ($binary) does not exist. Searching..."
+  if $IS_MAC; then
+    list="~/Applications ~/Applications/vim /Applications /Applications/vim /Applications/Utilities /Applications/Utilities/vim"
+    for i in $list; do
+      [[ -d "$i/MacVim.app" ]] && binary="$i/MacVim.app/Contents/MacOS/Vim" && break
+    done
+  else
+    for i in /usr/bin/vim{,.gtk,.gnome,.basic}; do
+      [[ -x $i ]] && binary=$i && break
+    done
+  fi
+  [[ ! -x "$binary" ]] && dbg "[FAILED]" && exit 1
+  dbg "[DONE ($binary)]"
+fi # }}}
+# Next, peek at the name used to invoke this script, and set options accordingly # {{{
+name="$(basename "$0")"
+parsing_parameters=true
+open_file_method="-p"
+check_session_file=true
+opts=
+# }}}
+# Gui mode ? # {{{
+use_gui=${VIM_USE_GUI:-false}
+case "$name" in
+m*|g*|r*|_m*|_g*|_r*) use_gui=true;;
+esac # }}}
+# Completion # {{{
+if [[ "$1" == "@@" ]]; then
+  ret_val="@@-f --scratch --fast"
+  if [[ $name == *-session || $3 == '-S' ]]; then
+    ret_val=
+    [[ "$(echo Session*.vim)" != 'Session*.vim' ]] && ret_val=" $(echo Session*.vim | sed -e 's/\(Session-\|\.vim\)//g') "
+    [[ -e 'Session.vim' && -L 'Session.vim' && "$ret_val" == *\ Session\ * ]] && ret_val="${ret_val/Session}"
+  elif $use_gui; then
+    [[ $2 == 1 ]] && ret_val="$($binary --serverlist)"
+  fi
+  echo "$ret_val"
+  exit 0
+fi # }}}
+if $use_gui; then # {{{
+  [[ "$PWD" != "/" ]] && server_name="${PWD/*\/}" || server_name="/"
+  if checkRemoteVim $1; then # {{{
+    server_name=$1
+    shift
+    name=mvim # }}}
+  else # Searching open session in parent folders # {{{
+    case "$name" in
+    m*|g*|r*|_m*|_g*|_r*)
+      dir=$PWD
+      while true; do
+        [[ "$dir" != "/" ]] && p=$(echo ${dir/*\/} | tr [a-z] [A-Z]) || p="/"
+        checkRemoteVim $p
+        [[ $? == 0 ]] && server_name=$p && break
+        [[ "$dir" == "/" ]] && break
+        dir=$(cd "$dir/.."; pwd)
+      done;;
+    esac
+  fi # }}}
+  # Graphic mode # {{{
+  case "$name" in
+  m*|g*|r*|_m*|_g*|_r*)
+    open_file_method="--remote-tab-silent"
+    opts="-g $opts --servername $server_name";;
+  esac # }}}
+fi # }}}
+# Options for each of vim modes # {{{
+case "$name" in
+_*|*vimdiff) parsing_parameters=false;;&
+*vimdiff)    opts+=" -dO";;
+*view)       opts+=" -R";;
+*ex)         opts+=" -e";;
+*-session)   sessionFile="$1" # {{{
+             if [[ -z "$sessionFile" ]]; then # {{{
+               # Session from window name # {{{
+               if [[ -n $TMUX ]]; then
+                 sessionFile="$(tmux display-message -p -F '#{window_name}')"
+                 sessionFile="${sessionFile,,}"
+                 if [[ -e "Session-$sessionFile.as.vim" ]]; then
+                   sessionFile="Session-$sessionFile.as.vim"
+                 elif [[ -e "Session-$sessionFile.vim" ]]; then
+                   sessionFile="Session-$sessionFile.vim"
+                 else
+                   sessionFile=
+                 fi
+               fi # }}}
+               # Default session # {{{
+               if [[ -z $sessionFile ]]; then
+                 if [[ -e "Session.as.vim" ]]; then
+                   sessionFile="Session.as.vim"
+                 elif [[ -e "Session.vim" ]]; then
+                   sessionFile="Session.vim"
+                 fi
+               fi # }}}
+               # Newest session # {{{
+               if [[ -z $sessionFile ]]; then
+                 if [[ $(echo Session-*.vim) != 'Session-*.vim' ]]; then
+                   sessionFile="$(ls -t Session-*.vim | head -n1)"
+                 fi
+               fi # }}}
+               # }}}
+             else # {{{
+               shift
+               [[ ! "$sessionFile" =~ ".vim" ]] && sessionFile="$sessionFile.vim"
+               [[ ! "$sessionFile" =~ "Session-" && "$sessionFile" != "Session."* ]] && sessionFile="Session-$sessionFile"
+               [[ ! -e "$sessionFile" ]] && echo "Session file [$sessionFile] does not exist" >/dev/stderr
+             fi # }}}
+             [[ -z "$sessionFile" || ! -e "$sessionFile" ]] && exit
+             opts+=" -S \"$sessionFile\""
+             ;; # }}}
+esac # }}}
+[[ "$name" == 'vi' ]] && check_session_file=false
+# Parse arguments # {{{
+files=
+if $parsing_parameters; then
+  if [[ ! -z "$1" ]]; then
+    while [[ ! -z "$1" ]]; do # {{{
+      case $1 in # {{{
+      --abort-if-no-session)
+             [[ ! -e "Session.vim" ]] && exit;;
+      -S)    opts+=" $1 $2"; shift;;
+      --fast)
+             opts+=" -c FastBuffer";;
+      --scratch | -)
+             opts+=" -c ScratchBuffer"
+             [[ $1 == '-' ]] && opts+=" $1";;
+      -c)    if [[ $2 != \'* && $2 != \"* ]]; then
+               opts+=" -c \"$2\""
+               shift
+             else
+               opts+=" -c"
+               while [[ ! -z $2 ]]; do
+                 opts+=" $2"
+                 shift
+                 [[ $2 == *\' && $2 == *\" ]] && break
+               done
+             fi;;
+      -*|+*) opts+=" $1";;
+      *)     files+=" \"$1\"";;
+      esac # }}}
+      shift
+    done # }}}
+    [[ ! -z "$files" ]] && opts="$opts $open_file_method"
+  elif $check_session_file; then
+    if [[ $opts != *-S\ * ]]; then
+      if [[ -f "Session.as.vim" ]]; then
+        opts="$opts -S Session.as.vim"
+      elif [[ -f "Session.vim" ]]; then
+        opts="$opts -S Session.vim"
+      fi
+    fi
+  fi
+else
+  files="$@"
+fi # }}}
+# Launch # {{{
+dbg "\"$binary\" $opts $files"
+eval "$binary" $opts $files
+# }}}
+

@@ -1,0 +1,19 @@
+diff --git a/autoload/fugitive.vim b/autoload/fugitive.vim
+index bd4eced..bd0153c 100644
+--- a/autoload/fugitive.vim
++++ b/autoload/fugitive.vim
+@@ -3651,10 +3651,11 @@ function! fugitive#Statusline(...) abort
+   let status = ''
+   let commit = s:DirCommitFile(@%)[1]
+   if len(commit)
+-    let status .= ':' . commit[0:7]
++    let status .= commit[0:7]
++  else
++    let status .= FugitiveHead(20)
+   endif
+-  let status .= '('.FugitiveHead(7).')'
+-  return '[Git'.status.']'
++  return status
+ endfunction
+ 
+ function! fugitive#statusline(...) abort

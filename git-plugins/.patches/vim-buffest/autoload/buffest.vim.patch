@@ -1,0 +1,16 @@
+8,10c8,10
+<   let l:tmp = '/'.$TMP.'/buffest/'
+<   if $TMP == ""
+<     let l:tmp = '/tmp/buffest/'
+---
+>   let l:tmp = $TMP_MEM_PATH . '/buffest/'
+>   if $TMP_MEM_PATH == ""
+>     let l:tmp = $TMP_PATH . '/buffest/'
+12,13c12,15
+<   call mkdir(l:tmp, 'p')
+<   return l:tmp.a:name
+---
+>   if !isdirectory(l:tmp)
+>     call mkdir(l:tmp, 'p', 0700)
+>   endif
+>   return l:tmp . a:name
