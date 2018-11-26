@@ -105,3 +105,18 @@
 [submodule "git-plugins/clang_complete"]
 	path = git-plugins/clang_complete
 	url = https://github.com/Rip-Rip/clang_complete.git
+[submodule "git-plugins/vim-man"]
+	path = git-plugins/vim-man
+	url = https://github.com/vim-utils/vim-man.git
+[submodule "git-plugins/targets.vim"]
+	path = git-plugins/targets.vim
+	url = https://github.com/wellle/targets.vim.git
+[submodule "git-plugins/jedi-vim"]
+	path = git-plugins/jedi-vim
+	url = https://github.com/davidhalter/jedi-vim.git
+[submodule "git-plugins/vim-kickfix"]
+	path = git-plugins/vim-kickfix
+	url = https://github.com/fcpg/vim-kickfix.git
+[submodule "git-plugins/vim-AnsiESC"]
+	path = git-plugins/vim-AnsiESC
+	url = https://github.com/systemmonkey42/vim-AnsiESC.git

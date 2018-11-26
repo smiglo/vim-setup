@@ -42,7 +42,7 @@ function! s:get_entry(tab)
     endif
     let filename = fnamemodify(bufname, ':t')
     if max_len > 3 && strlen(filename) > max_len
-      if $TERMINAL_HAS_EXTRA_CHARS == 'true'
+      if $TERMINAL_HAS_EXTRA_CHARS != 'false'
         let filename = filename[: max_len - 1] . '…'
       else
         let filename = filename[: max_len - 3] . '...'

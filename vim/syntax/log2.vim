@@ -85,7 +85,7 @@ hi def link messagesHost        Identifier
 hi def link messagesLabel       Operator
 hi def link messagesPID         Constant
 hi def link messagesKernel      Special
-hi def link messagesError       ErrorMsg
+hi def link messagesError       WarningMsg
 hi def link messagesIP          Constant
 hi def link messagesURL         Underlined
 hi def link messagesText        Normal
@@ -126,7 +126,6 @@ hi channelChangeHighlight  ctermbg=18 ctermfg=192
 hi keyPressHighlight       ctermbg=22 ctermfg=192
 hi exceptionStackHighlight ctermbg=88 ctermfg=192
 hi logsenseHighlight       ctermbg=17  ctermfg=184 cterm=bold
-hi logMy                   ctermfg=82  gui=underline guifg=Red
 
 " keyword highlighting "
 hi mediaPlayerKeyword  ctermfg=117

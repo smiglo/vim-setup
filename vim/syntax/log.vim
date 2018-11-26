@@ -14,16 +14,16 @@ syn match logMyImp     /\<IMP\>/                 skipwhite
 
 syn match logStack /^\%(-\s\)*\%(Exception\|Registers\|Stack Dump\|reg\|pc\|ra\|PC\|Signal\).*/
 
-syn match logFile /^[A-Za-z0-9_\-/\.]\{5,\}:/      nextgroup=logLine
-syn match logLine /\d\+:/                          contained nextgroup=logTime
+syn match logFile /^[A-Za-z0-9_/~%\-\.]\{5,\}:\%(\d\+\)\{0,1\}[:-]/ contains=logLine nextgroup=logTime
+syn match logLine /\d\+[:-]/                                        contained
 
-syn match logTime      /[A-Za-z]\{3\} \d\+ \d\d:\d\d:\d\d\|\d\{4\}-\d\d-\d\d \d\d:\d\d:\d\d/   nextgroup=logId,logMy,logIssue,logDebug,logWarning,logError,logFatal
-syn match logTime      /\d\d:\d\d:\d\d/                                                        nextgroup=logId,logMy,logIssue,logDebug,logWarning,logError,logFatal
-syn match logId        /[0-9A-F]\{6\}-[A-Z]\+-\d\+/                                            nextgroup=logException,logMy,logIssue,logDebug,logWarning,logError,logFatal
-syn match logId        /\[\d\+\]\|\[tid=\d\+\]/                                                nextgroup=logException,logMy,logIssue,logDebug,logWarning,logError,logFatal
-syn match logId        /\d\{6}-\d\d:\d\d:\d\d\.\d\{6\}\|\[[0-9\-]\+T[0-9:.]\+Z\]/              nextgroup=logException,logMy,logIssue,logDebug,logWarning,logError,logFatal
-syn match logId        /\[mod=[A-Z][^\]]*\]/                                                   nextgroup=logException,logMy,logIssue,logDebug,logWarning,logError,logFatal
-syn match logException /.*Exception.*\|.*\<at .*/                                              contained nextgroup=logMy
+syn match logTime      /[A-Za-z]\{3\} \d\+ \d\d:\d\d:\d\d\|\d\{4\}-\d\d-\d\d \d\d:\d\d:\d\d/                             nextgroup=logId,logMy,logIssue,logDebug,logWarning,logError,logFatal
+syn match logTime      /\d\d:\d\d:\d\d/                                                                  conceal cchar=∙ nextgroup=logId,logMy,logIssue,logDebug,logWarning,logError,logFatal
+syn match logId        /[0-9A-F]\{6\}-[A-Z]\+-\d\+\s\{0,1\}/                                             conceal cchar=∙ nextgroup=logException,logMy,logIssue,logDebug,logWarning,logError,logFatal
+syn match logId        /\[\d\+\]:\{0,1\}\|\[\d\+\]\s\{0,1\}\|\[tid=\d\+\]\s\{0,1\}/                      conceal cchar=∙ nextgroup=logException,logMy,logIssue,logDebug,logWarning,logError,logFatal
+syn match logId        /\d\{6}-\d\d:\d\d:\d\d\.\d\{6\}\s\{0,1\}\|\[[0-9\-]\+T[0-9:.]\+Z\]\s\{0,1\}/      conceal cchar=∙ nextgroup=logException,logMy,logIssue,logDebug,logWarning,logError,logFatal
+syn match logId        /\[mod=[A-Z][^\]]*\]\s\{0,1\}/                                                    conceal cchar=∙ nextgroup=logException,logMy,logIssue,logDebug,logWarning,logError,logFatal
+syn match logException /.*Exception.*\|.*\<at .*/                                                        contained       nextgroup=logMy
 syn match logIssue     /\[[A-Z][A-Z0-9]\{2,\}-[1-9][0-9]\{2,\}\]\|[A-Z][A-Z0-9]\{2,\}-[1-9][0-9]\{2,\}:\|\<[A-Z][A-Z0-9]\{2,\}-[1-9][0-9]\{2,\}\>/
 
 syn match logDebug     /\[DEBUG\]/    contains=logFile,logTime  skipwhite
@@ -36,22 +36,22 @@ syn keyword warnKeyword   warning
 
 if !exists("did_logannotate_syntax_inits")
   let did_logannotate_syntax_inits = 1
-  hi def link logId Comment
-  hi def link logStack Error
-  hi def link logFile Statement
-  hi def link logLine Comment
-  hi def link logTime Type
-  hi def link logIssue Identifier
-  hi def link logException logWarning
-  hi def link logDebug Normal
-  hi def link logMessage Normal
-  hi logWarning ctermfg=9  gui=underline guifg=Red
-  hi def link logError logWarning
-  hi def link logFatal ErrorMsg
-  hi def link logMyInfo Special
-  hi def link logMyFunc Function
-  hi def link logMyErr  Number
-  hi def link logMyImp  Identifier
+  hi def link logId          Comment
+  hi def link logStack       Error
+  hi def link logFile        Statement
+  hi def link logLine        Comment
+  hi def link logTime        Special
+  hi def link logIssue       Identifier
+  hi def link logException   ErrorMsg
+  hi def link logWarning     WarningMsg
+  hi def link logDebug       Normal
+  hi def link logMessage     Normal
+  hi def link logError       ErrorMsg
+  hi def link logFatal       ErrorMsg
+  hi def link logMyInfo      ModeMsg
+  hi def link logMyFunc      Function
+  hi def link logMyErr                    Error
+  hi def link logMyImp                    WildMenu
   hi errorKeyword       ctermfg=1   cterm=bold,underline
   hi warnKeyword        ctermfg=178 cterm=bold,underline
 endif

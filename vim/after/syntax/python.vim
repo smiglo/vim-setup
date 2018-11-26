@@ -1,56 +1,34 @@
-" TB] Taken from https://raw.githubusercontent.com/ehamberg/vim-cute-python/moresymbols/after/syntax/python.vim
-" we need the conceal feature (vim ≥ 7.3)
-if !has('conceal')
+if !jedi#init_python()
     finish
 endif
 
-" remove the keywords. we'll re-add them below
-syntax clear pythonOperator
+if g:jedi#show_call_signatures > 0 && has('conceal')
+    " +conceal is the default for vim >= 7.3
 
-syntax match pythonOperator "\<is\>"
+    let s:e = g:jedi#call_signature_escape
+    let s:full = s:e.'jedi=.\{-}'.s:e.'.\{-}'.s:e.'jedi'.s:e
+    let s:ignore = s:e.'jedi.\{-}'.s:e
+    exe 'syn match jediIgnore "'.s:ignore.'" contained conceal'
+    setlocal conceallevel=2
+    syn match jediFatSymbol "\*_\*" contained conceal
+    syn match jediFat "\*_\*.\{-}\*_\*" contained contains=jediFatSymbol
+    syn match jediSpace "\v[ ]+( )@=" contained
+    exe 'syn match jediFunction "'.s:full.'" keepend extend '
+                \ .' contains=jediIgnore,jediFat,jediSpace'
+                \ .' containedin=pythonComment,pythonString,pythonRawString'
+    unlet! s:e s:full s:ignore
 
-syntax match pyNiceOperator "\<in\>" conceal cchar=∈
-syntax match pyNiceOperator "\<or\>" conceal cchar=∨
-syntax match pyNiceOperator "\<and\>" conceal cchar=∧
-" include the space after “not” – if present – so that “not a” becomes “¬a”.
-" also, don't hide “not” behind  ‘¬’ if it is after “is ”.
-syntax match pyNiceOperator "\%(is \)\@<!\<not\%( \|\>\)" conceal cchar=¬
-syntax match pyNiceOperator "\<not in\>" conceal cchar=∉
-syntax match pyNiceOperator "<=" conceal cchar=≤
-syntax match pyNiceOperator ">=" conceal cchar=≥
-" only conceal “==” if alone, to avoid concealing SCM conflict markers
-syntax match pyNiceOperator "=\@<!===\@!" conceal cchar=≡
-syntax match pyNiceOperator "!=" conceal cchar=≢
+    hi def link jediIgnore Ignore
+    hi def link jediFatSymbol Ignore
+    hi def link jediSpace Normal
 
-syntax keyword pyNiceOperator sum conceal cchar=∑
-syntax keyword pyNiceBuiltin all conceal cchar=∀
-syntax keyword pyNiceBuiltin any conceal cchar=∃
-syntax match pyNiceOperator "\<\%(math\.\)\?sqrt\>" conceal cchar=√
-syntax match pyNiceKeyword "\<\%(math\.\)\?pi\>" conceal cchar=π
-syntax match pyNiceOperator "\<\%(math\.\|\)ceil\>" conceal cchar=⌈
-syntax match pyNiceOperator "\<\%(math\.\|\)floor\>" conceal cchar=⌊
+    if exists('g:colors_name')
+        hi def link jediFunction CursorLine
+        hi def link jediFat TabLine
+    else
+        hi def jediFunction term=NONE cterm=NONE ctermfg=6 guifg=Black gui=NONE ctermbg=0 guibg=Grey
+        hi def jediFat term=bold,underline cterm=bold,underline gui=bold,underline ctermbg=0 guibg=#555555
+    endif
+endif
 
-syntax keyword pyNiceStatement int conceal cchar=ℤ
-syntax keyword pyNiceStatement float conceal cchar=ℝ
-syntax keyword pyNiceStatement complex conceal cchar=ℂ
-
-syntax match pyNiceOperator " \* " conceal cchar=∙
-syntax match pyNiceOperator " / " conceal cchar=÷
-" The following are special cases where it /may/ be okay to ignore PEP8
-syntax match pyNiceOperator "\( \|\)\*\*\( \|\)2\>" conceal cchar=²
-syntax match pyNiceOperator "\( \|\)\*\*\( \|\)3\>" conceal cchar=³
-syntax match pyNiceOperator "\( \|\)\*\*\( \|\)n\>" conceal cchar=ⁿ
-
-" Your background, and taste, may affect whether you like # for cardinality ;)
-" syntax keyword pyNiceBuiltin len conceal cchar=#
-
-syntax keyword pyNiceStatement lambda conceal cchar=λ
-syntax keyword pyNiceStatement None conceal cchar=∅
-
-hi link pyNiceOperator Operator
-hi link pyNiceStatement Statement
-hi link pyNiceKeyword Keyword
-hi link pyNiceBuiltin Builtin
-hi! link Conceal Operator
-
-setlocal conceallevel=1
+hi def jediUsage cterm=reverse gui=standout

@@ -1,5 +1,8 @@
 " vim: fdl=0 fdm=marker
 
+if $IS_MAC == 'true' && has("python3")
+  py3 ""
+endif
 " Useful stuff {{{
 " if has('win16') || has('win32') || has('win64')
 " else
@@ -57,9 +60,10 @@ set statusline+=\ %=\                                               " Middle
 set statusline+=%#StatusLineMark
 set statusline+=#%(%(\ %R%)%(\ %H%)%(\ %W%)\ %)%*                   " Rest of Flags
 set statusline+=%#StatusLineLoc#
-set statusline+=%(\ %{TBSessGetName()}\ \|%)                        " Sesison
-set statusline+=%(\ %{FugitiveStatusline()}\ \|%)                   " Branch
-if $TERMINAL_HAS_EXTRA_CHARS == 'true'
+set statusline+=%(\ %{TBSessGetName('SB')}\ \|%)                    " Sesison
+set statusline+=%(\ %{TBSBGitStatus()}\ \|%)                        " Branch
+set statusline+=%(\ %{TBSBExtraInfo()}\ \|%)                        " Extra information
+if $TERMINAL_HAS_EXTRA_CHARS != 'false'
   set statusline+=\ %4l\ ×\ %-3c\ \|                                " Cursor position
 else
   set statusline+=\ %4l\ x\ %-3c\ \|                                " Cursor position
@@ -71,13 +75,13 @@ set noerrorbells  " quiet
 set backspace=indent,eol,start " allow backspacing over everything in insert mode
 set cpo+=>        " add line break when appending into a register
 set tw=0          " textwidth
-set timeout timeoutlen=3000 ttimeoutlen=200   " ESC timeout
+set timeout timeoutlen=750 ttimeoutlen=200   " ESC timeout
 set clipboard=unnamed "yanks go to system clipboard
 set pastetoggle=<f5> " do I need this if I know "+ register?
 set switchbuf=useopen,usetab " don't duplicate an existing open buffer
 set matchpairs+=<:> " Jump over '<' '>' blocks using TAB (and % by default)
 set sessionoptions=buffers,sesdir,tabpages,winsize,globals,localoptions,folds
-set fillchars=vert:\│,fold:─
+set fillchars=vert:\│,fold:\⋅
 set viminfo='500,<80,s10,h
 if $VIM_UTILS_PATH != ""
   set viminfo+=n$VIM_UTILS_PATH/viminfo
@@ -96,10 +100,10 @@ set hidden   " Does not close buffers
 "   let &t_te .= "\e[23;0t"
 " endif
 " set title    " Change terminal's title
-set listchars=tab:⋮\ ,trail:-,extends:\#,precedes:\# " ,eol:¬
+set listchars=tab:\|\⋅,trail:¬,extends:\#,precedes:\#,conceal:∙
 set list     " enables list by default
 set nowrap        " wrap disabled
-set showbreak=\ ↳\ 
+let &showbreak = ' ↳ ⋅'
 set diffopt=filler,iwhite,vertical " diff switches
 set cryptmethod=blowfish2 " algorithm for encryption
 set undofile " persistent undo
@@ -107,7 +111,7 @@ set undodir=$VIM_UTILS_PATH/undoes " location of persistent undo
 if $VIM_UNDOES_PATH != ""
   set undodir=$VIM_UNDOES_PATH
 endif
-set concealcursor=nc "Unfold coneals only when editing
+set concealcursor=ncv "Unfold coneals only when editing
 " Shortens messages to avoid 'press a key' prompt
 set shortmess=afIlmnrwxoOtT
 set scrolloff=4         "Start scrolling when we're 8 lines away from margins
@@ -116,6 +120,9 @@ set sidescroll=1
 let g:is_bash=1
 if v:version > 703 || v:version == 703 && has('patch541')
   set formatoptions+=j
+endif
+if $VIM_GIT_SHOW_STATUS == 'true'
+  let g:GitShowStatus = 1
 endif
 " menu bar on status bar with completion & menu in concole mode {{{
 set wildmenu
@@ -144,7 +151,9 @@ function! MyFoldText()
   let sub  = substitute(line, '/\*\|\*/\|^\s*[#"]*\s*\|\s\+$\|\s*#*\s*{{{\d\=', '', 'g')
 " }}} # fix for "\{\{\{" in "let sub = ..."
   let lines = v:foldend - v:foldstart + 1
-  return  '➣ ' . substitute(v:folddashes, '-', '─', 'g') . ' ' . sub . ' ╳ ' . lines . ' lines ⟣'
+  let char = 'x'
+  if $TERMINAL_HAS_EXTRA_CHARS != 'false' | let char = '×' | endif
+  return  '➣ ' . substitute(v:folddashes, '-', '∙', 'g') . ' [ ' . sub . ' ' . char . ' ' . lines . ' lines ] '
 endfunction
 
 autocmd FileType python       setlocal foldmethod=indent
@@ -241,73 +250,88 @@ filetype plugin on
 " }}}
 " Only do this part when compiled with support for autocommands. {{{
 if has("autocmd")
-   " Enable file type detection.
-   " Use the default filetype settings, so that mail gets 'tw' set to 72,
-   " 'cindent' is on in C files, etc.
-   " Also load indent files, to automatically do language-dependent indenting.
-   filetype plugin indent on
+  " Enable file type detection.
+  " Use the default filetype settings, so that mail gets 'tw' set to 72,
+  " 'cindent' is on in C files, etc.
+  " Also load indent files, to automatically do language-dependent indenting.
+  filetype plugin indent on
 
-   " Put these in an autocmd group, so that we can delete them easily.
-   augroup vimrcEx
-   au!
+  " Put these in an autocmd group, so that we can delete them easily.
+  augroup vimrcEx
+  au!
 
-   autocmd
-         \ FileType make,gitcommit,python
-         \ setlocal list tabstop=4
+  if exists('g:GitShowStatus') && g:GitShowStatus == 1
+    autocmd BufRead,BufWritePost,FocusGained,BufEnter * call TBUpdateGitStatus()
+  endif
 
-   " Auto reload vimrc when it's saved
-   autocmd BufWritePost ~/.vimrc source ~/.vimrc
+  autocmd
+        \ FileType make,git*,python
+        \ setlocal list tabstop=4 noexpandtab
 
-   " Save all files when vim loses focus
-   au FocusLost * silent! wa
+  " Auto reload vimrc when it's saved
+  autocmd BufWritePost ~/.vimrc source ~/.vimrc
 
-   au FileType qf,help setlocal cursorline | map <buffer> <silent> q<CR> :quit<CR>
+  " Pairs : (《,》), (∙,∙), (►,●)
+  autocmd Syntax default,log,log2,sh,vim,c,cpp
+        \ syn match foldMarkerB /{\{3\}\d*/ conceal cchar=► containedin=logMy,gitconfigComment,shQuickComment |
+        \ syn match foldMarkerE /}\{3\}\d*/ conceal cchar=● containedin=logMy,gitconfigComment,shQuickComment
+  autocmd Syntax default,log,log2,sh,vim,c,cpp
+        \ hi def link foldMarkerB Comment |
+        \ hi def link foldMarkerE Comment |
+        \ syn cluster cCommentGroup   add=foldMarkerB,foldMarkerE |
+        \ syn cluster shCommentGroup  add=foldMarkerB,foldMarkerE |
+        \ syn cluster vimCommentGroup add=foldMarkerB,foldMarkerE |
+        \ set conceallevel=2
 
-   au BufNewFile,BufRead * :set relativenumber " relative line numbers
+  " Save all files when vim loses focus
+  au FocusLost * silent! wa
 
-   " with comments
-   au BufNewFile,BufEnter *.c,*.h,*.java,*.jsp set formatoptions-=t
+  au FileType qf,help setlocal cursorline | map <buffer> <silent> q<CR> :quit<CR>
 
-   " Jump over folds
-   " au FileType * if &filetype == "qf" | | else | nnoremap <buffer> <BS> zk | vnoremap <buffer> <BS> zk | nnoremap <buffer> <CR> zj | vnoremap <buffer> <CR> zj | endif
+  au BufNewFile,BufRead * :set relativenumber " relative line numbers
 
-   " set default filetype
-   au BufEnter * if &filetype == "" || &filetype == "text" | setlocal filetype=default | endif
-   au BufReadPost * if expand("<afile>") =~# ".*/grep-last/.*" | setlocal filetype=default | endif
+  " with comments
+  au BufNewFile,BufEnter *.c,*.h,*.java,*.jsp set formatoptions-=t
 
-   au BufNewFile,BufRead *.service  setf systemd
+  " Jump over folds
+  " au FileType * if &filetype == "qf" | | else | nnoremap <buffer> <BS> zk | vnoremap <buffer> <BS> zk | nnoremap <buffer> <CR> zj | vnoremap <buffer> <CR> zj | endif
 
-   " Save session on exit
-   au VimLeave * if exists("g:TBSessionName") | call TBSessSave(TBSessGetName(), 1) | endif
+  " set default filetype
+  au BufEnter * if &filetype == "" || &filetype == "text" | setlocal filetype=default | endif
+  au BufReadPost * if expand("<afile>") =~# ".*/grep-last/.*" | setlocal filetype=default | endif
 
-   " Working with split screen nicely - Resize Split When the window is resized"
-   au VimResized * :wincmd =
+  au BufNewFile,BufRead *.service  setf systemd
 
-   " Omni completion for file types:
-   autocmd FileType java setlocal omnifunc=javacomplet g:clang_user_options = '-std=c++11'lete#Complete | completefunc=javacomplete#CompleteParamsInfo
+  " Save session on exit
+  au VimLeave * if exists("g:TBSessionName") | call TBSessSave(TBSessGetName(), 1) | endif
 
-   autocmd FileType arduino set filetype=cpp
-   autocmd FileType c set filetype=cpp
+  " Working with split screen nicely - Resize Split When the window is resized"
+  au VimResized * :wincmd =
 
-   au TabLeave * if ! exists("SessionLoad") | let g:LastTab = tabpagenr() | endif
+  " Omni completion for file types:
+  autocmd FileType java setlocal omnifunc=javacomplet g:clang_user_options = '-std=c++11'lete#Complete | completefunc=javacomplete#CompleteParamsInfo
 
-   " When editing a file, always jump to the last known cursor position.
-   " Don't do it when the position is invalid or when inside an event handler
-   " (happens when dropping a file on gvim).
-   " Also don't do it when the mark is in the first line, that is the default
-   " position when opening a file.
-   autocmd BufReadPost * if line("'\"") > 1 && line("'\"") <= line("$") | exe "normal! g`\"" | endif
+  autocmd FileType arduino set filetype=cpp
+  autocmd FileType c set filetype=cpp
 
-   let g:DuzyPlik = 2 " MB
-   let g:DuzyPlik = g:DuzyPlik * 1024 * 1024
+  au TabLeave * if ! exists("SessionLoad") | let g:LastTab = tabpagenr() | endif
 
-   autocmd BufReadPre * if getfsize(expand("<afile>")) > g:DuzyPlik | setlocal noswapfile bufhidden=unload ro | endif
+  " When editing a file, always jump to the last known cursor position.
+  " Don't do it when the position is invalid or when inside an event handler
+  " (happens when dropping a file on gvim).
+  " Also don't do it when the mark is in the first line, that is the default
+  " position when opening a file.
+  autocmd BufReadPost * if line("'\"") > 1 && line("'\"") <= line("$") | exe "normal! g`\"" | endif
 
-   " Fix syntax corrupted by folds
-   au Syntax * if getfsize(expand("<afile>")) < g:DuzyPlik | syntax sync fromstart | else | syntax sync minlines=3 | endif
+  let g:DuzyPlik = 2 " MB
+  let g:DuzyPlik = g:DuzyPlik * 1024 * 1024
 
-   augroup END
+  autocmd BufReadPre * if getfsize(expand("<afile>")) > g:DuzyPlik | setlocal noswapfile bufhidden=unload ro | endif
 
+  " Fix syntax corrupted by folds
+  au Syntax * if getfsize(expand("<afile>")) < g:DuzyPlik | syntax sync fromstart | else | syntax sync minlines=3 | endif
+
+  augroup END
 endif " has("autocmd")
 " }}}
 " Convenient command to see the difference between the current buffer and the " {{{
@@ -339,11 +363,24 @@ let g:ycm_min_num_of_chars_for_completion = 4
 let g:ycm_key_invoke_completion = '<C-f>'
 " # }}}
 " Clang-Complete {{{
-let g:clang_library_path = split(glob($MY_PROJ_PATH . '/vim/vim/third_party/ycmd/libclang.*'))[0]
+if $MY_PROJ_PATH != ''
+  let list = split(glob($MY_PROJ_PATH . '/vim/vim/third_party/ycmd/libclang.*'))
+  if ! empty(list) | let g:clang_library_path = list[0] | endif
+  unlet list
+endif
 let g:clang_user_options = '-std=c++11'
-let g:clang_snippets = 1
-let g:clang_snippets_engine = 'clang_complete'
+if $IS_MAC == 'true'
+  let g:clang_library_path = '/usr/local/Cellar/llvm/7.0.0/lib/libclang.dylib'
+endif
+let g:clang_snippets = 0
+" let g:clang_snippets_engine = 'clang_complete'
 nnoremap <silent> <Leader>cc :silent :call g:ClangUpdateQuickFix() <Bar> :copen<CR>
+" }}}
+" Jedi # {{{
+let g:jedi#completions_command = "<C-N>"
+if has("python3")
+  let g:jedi#force_py_version = "3.7"
+endif
 " }}}
 " Fugitive {{{
 nmap <Leader>gs :Gstatus<CR>
@@ -352,7 +389,7 @@ nmap <Leader>gs :Gstatus<CR>
 if has("cscope")
   set csprg=/usr/bin/cscope
   if $IS_MAC == 'true'
-    set csprg=$HOME/.bin/brew/cscope
+    set csprg=/usr/local/bin/cscope
   endif
   set nocsverb
   " searching cscope database firts, then tags
@@ -514,12 +551,35 @@ let g:syntastic_cpp_compiler_options = ' -std=c++11'
 let g:syntastic_cpp_remove_include_errors = 1
 let g:syntastic_cpp_check_header = 1
 " }}}
+" Man # {{{
+nnoremap <expr> K ':Man ' . expand('<cword>') . '<CR>'
+nnoremap <expr> <Leader>k ':Man 3 ' . expand('<cword>') . '<CR>'
+" }}}
+" ConqureGdb # {{{
+if has("python3")
+  let g:ConqueTerm_PyVersion = 3
+else
+  let g:ConqueGdb_Disable = 1
+endif
+" }}}
+" KickFix # {{{
+let g:kickfix_zebra=0
+" }}}
 " }}}
 " My Own {{{
 " Functions & Commands{{{
 " Sessions {{{
-function! TBSessGetName() " {{{
+function! TBSessGetName(...) " {{{
   if ! exists("g:TBSessionName") | return "" | endif
+  if a:0 >= 1 && (a:1 == 'SB' || a:1 == 'SB-e')
+    if g:TBSessionName == 'Session'
+      if a:1 == 'SB' | return "" | else | return 'S' | endif
+    endif
+    if ! exists("g:tbSessionWName")  | let g:tbSessionWName = system("tmux display-message -p -t $TMUX_PANE -F '#W'") | endif
+    if g:tbSessionWName =~? "^" . g:TBSessionName
+      if a:1 == 'SB' | return "" | else | return 'W' | endif
+    endif
+  endif
   return g:TBSessionName
 endfunction " }}}
 function! TBSessGetFile(auto_save, local) " {{{
@@ -567,7 +627,7 @@ endfunction
 command! -nargs=1 -complete=custom,TBSessFiles TBSessLoad call TBSessLoad(<f-args>) " }}}
 " }}}
 " Open corresponding cpp/hpp/c/h file in a split # {{{
-function! TBOpenFile()
+function! TBOpenFile(...)
     let ext  = expand('%:e')
     let file = expand('%:r')
     if l:ext == 'h' || l:ext == 'hpp'
@@ -577,14 +637,27 @@ function! TBOpenFile()
     else
       return
     endif
-    if filereadable(l:file . '.' . l:ext)
-      let ext = l:ext
-    elseif filereadable(l:file . '.' . l:ext . 'pp')
-      let ext = l:ext . 'pp'
+    if filereadable(l:file . '.' . l:ext)            | let file .= l:ext
+    elseif filereadable(l:file . '.' . l:ext . 'pp') | let file .= l:ext . 'pp'
     else
-      return
+      if expand('%:p:.') =~ "^/" | return | endif
+      let file = expand('%:t:r')
+      let p = ""
+      let p_fmt = '%:p:.:h'
+      let cnt = 3
+      if exists('g:TBOpenFileMaxUp') | let cnt = g:TBOpenFileMaxUp | endif
+      if a:0 > 0 | let cnt = a:1 | endif
+      while l:cnt > 0
+        let p = expand(l:p_fmt . ':h')
+        if l:p == "." | break | endif
+        let p_fmt .= ':h'
+        let cnt -= 1
+      endwhile
+      let res = glob(l:p . "/**/" . l:file . '.' . l:ext . '*')
+      if empty(l:res) | return | endif
+      let file = split(l:res)[0]
     endif
-    execute 'edit ' . file . '.' . ext
+    execute 'edit ' . l:file
 endfunction
 " }}}
 " Resizing splits {{{
@@ -691,7 +764,7 @@ function! TBACMRun()
 endfunction
 " }}}
 " For stdin # {{{
-command! FastBuffer setlocal bufhidden=hide noswapfile cursorline | noremap q<CR> :quitall!<CR>
+command! FastBuffer setlocal bufhidden=hide noswapfile cursorline | noremap q<CR> :quit!<CR>
 command! ScratchBuffer setlocal buftype=nofile | FastBuffer
 " }}}
 " Building {{{
@@ -708,13 +781,19 @@ function! TBBldGetMakefileTargets(makeCompiler) " {{{
   let makeCompl = '/usr/share/bash-completion/completions/make'
   let sedParams = '-nrf'
   if $IS_MAC == 'true' " {{{
-    let makeCompl = '/opt/local/share/bash-completion/completions/make'
+    let makeCompl = $RUNTIME_PATH . '/completion.d/ports.completions/make'
     let sedParams = '-nf'
   endif " }}}
-  return split(system('source ' . l:makeCompl . '; ' . a:makeCompiler . ' -npq .DEFAULT 2>/dev/null | sed ' . l:sedParams . ' <(_make_target_extract_script --) | tr "\\n" " "'))
+  return split(system(
+        \ 'source ' . l:makeCompl . '; ' .
+        \ a:makeCompiler . ' -npq .DEFAULT 2>/dev/null ' .
+        \ '| sed ' . l:sedParams . ' <(_make_target_extract_script --) ' .
+        \ '| sort -u' .
+        \ '| tr "\\n" " "'
+        \ ))
 endfunction " }}}
 function! TBBldFileCompl(A, L, P) " {{{
-  let l:out = [ '-r', '-d' , '-sh', '-' ]
+  let l:out = [ '-r', '-d' , '-sh', '-cpp', '-' ]
   let makeCompiler = TBBldGetMakefile()
   if !empty(l:makeCompiler)
     let l:out += TBBldGetMakefileTargets(l:makeCompiler)
@@ -730,19 +809,22 @@ function! TBBldFile(...) " {{{
   let runParam = 0
   let dbg = 0
   let ftype = &filetype
+  let findMakefile = 1
   for i in params " {{{
-    if     i == '-r'  | let run = 1 | let runParam = 1 | unlet params[0]
-    elseif i == '-d'  | let dbg = 1 | unlet params[0]
-    elseif i == '-sh' | let ftype='sh' | unlet params[0]
-    elseif i == '-'   | unlet params[0] | break
-    else              | break
+    if     i == '-r'   | let run = 1 | let runParam = 1 | unlet params[0]
+    elseif i == '-d'   | let dbg = 1 | unlet params[0]
+    elseif i == '-sh'  | let ftype='sh' | unlet params[0]
+    elseif i == '-cpp' | let findMakefile = 0 | unlet params[0]
+    elseif i == '-'    | unlet params[0] | break
+    else               | break
     endif
   endfor " }}}
   if !empty(params) | let run = 1 | endif
-  let makeCompiler = TBBldGetMakefile()
   let shTypes = [ 'sh', 'default' ]
+  let makeCompiler = ''
+  if l:findMakefile == 1 && index(l:shTypes, l:ftype) == -1 | let makeCompiler = TBBldGetMakefile() | endif
   if index(l:shTypes, l:ftype) != -1 " {{{
-    let compiler = '%w !bash'
+    let compiler = '%w !clear; bash'
     if l:dbg == 1 | let compiler .= ' -xv' | endif
     let compiler .= ' -s - ' . join(l:params)
     execute l:compiler
@@ -750,14 +832,14 @@ function! TBBldFile(...) " {{{
   elseif !empty(l:makeCompiler) " {{{
     let l:targets = TBBldGetMakefileTargets(l:makeCompiler)
     if index(l:targets, expand('%:r')) != -1 | let l:makeCompiler .= ' TARGET=' . expand('%:r') | endif
-    if l:runParam == 1 | let l:params = [ "run" ] + l:params | endif
+    if l:runParam == 1 | let l:params = [ "run" ] + l:params | execute 'silent !clear' | redraw! | endif
     echomsg "Building as '" . l:makeCompiler . ' ' . join(l:params) . "'"
     execute l:makeCompiler . ' ' . join(l:params)
     " }}}
   elseif l:ftype == 'c' || l:ftype == 'cpp' " {{{
     let compiler = ''
     if   l:ftype == 'c' | let compiler = 'clang -std=c99'
-    else                | let compiler = 'clang++ -std=c++11'
+    else                | let compiler = 'clang++ -std=c++11 -Wno-deprecated'
     endif
     if l:dbg == 1 | let compiler .= ' -g -O0' | endif
     let outFile = expand('%:r') . '.out'
@@ -765,7 +847,7 @@ function! TBBldFile(...) " {{{
     echomsg "Building as '" . l:compiler . "'"
     if l:run == 1 " {{{
       echomsg "Running as '" . l:outFile . ' ' . join(l:params) . "'"
-      execute '!' . l:compiler . ' && ' . l:outFile . ' ' . join(l:params)
+      execute '!' . l:compiler . ' && { clear; ' . l:outFile . ' ' . join(l:params) . '; }'
       " }}}
     else " {{{
       execute "cexpr system('" . l:compiler . "')"
@@ -778,7 +860,51 @@ function! TBBldFile(...) " {{{
 endfunction " }}}
 command! -nargs=? -complete=customlist,TBBldFileCompl Bld call TBBldFile(<f-args>)
 " }}}
-" Oth {{{
+" Status Bar {{{
+function! TBSBGitStatus() " {{{
+  let ret = FugitiveStatusline()
+  if empty(l:ret) | return '' | endif
+  if ! exists('g:GitShowStatus') || g:GitShowStatus == 0 | return l:ret | endif
+  let dir = FugitiveWorkTree()
+  if empty(l:dir) | return l:ret | endif
+  if !exists('g:GitStatusDict') || !has_key(g:GitStatusDict, l:dir) | call TBUpdateGitStatus() | endif
+  let st = g:GitStatusDict[l:dir]
+  if empty(l:st) | let st = '=' | endif
+  return l:ret . ':' . l:st
+endfunction " }}}
+function! TBUpdateGitStatus() " {{{
+  if ! exists('g:GitShowStatus') || g:GitShowStatus == 0 | return | endif
+  let dir = FugitiveWorkTree()
+  if empty(l:dir) | return | endif
+  if !exists('g:GitStatusDict') | let g:GitStatusDict = {} | endif
+  let git_dir = l:dir . '/.git'
+  let st = ''
+  call system('git --work-tree=' . l:dir . ' --git-dir=' . l:git_dir . ' diff --quiet')
+  if v:shell_error != 0 | let st .= '*' | endif
+  call system('git --work-tree=' . l:dir . ' --git-dir=' . l:git_dir . ' diff --cached --quiet')
+  if v:shell_error != 0 | let st .= '+' | endif
+  let g:GitStatusDict[l:dir] = l:st
+endfunction " }}}
+function! TBSBExtraInfo() " {{{
+  let ret = ''
+  let sName = TBSessGetName('SB-e')
+  if $TERMINAL_HAS_EXTRA_CHARS != 'false'
+    if     l:sName == 'W' | let ret .= ' 𝑆'  |
+    elseif l:sName == 'S' | let ret .= ' 𝑆𝑆' |
+    endif
+    if &list  == 1 | let ret .= ' ¶' | endif
+    if &wrap  == 1 | let ret .= ' ↵' | endif
+    if &spell == 1 | let ret .= ' ✘' | endif
+  else
+    if     l:sName == 'W' | let ret .= ' S'  |
+    elseif l:sName == 'S' | let ret .= ' SS' |
+    endif
+    if &list  == 1 | let ret .= ' P' | endif
+    if &wrap  == 1 | let ret .= ' W' | endif
+    if &spell == 1 | let ret .= ' S' | endif
+  endif
+  return l:ret[1:]
+endfunction " }}}
 function! TBSBFilename(mode) " {{{
   let fName = expand('%')
   let ret = ''
@@ -823,6 +949,36 @@ function! TBSBFilenameToggle() " {{{
 endfunction " }}}
 nnoremap <silent> <F12>cf :silent call TBSBFilenameToggle()<CR>
 " }}}
+" Oth {{{
+function! TBTmuxSplit(...) " {{{
+  let params = {}
+  if a:0 >= 1 | let l:params = a:1 | endif
+  let fdir = expand('%:p:h')
+  if empty(l:fdir) | let fdir = getcwd() | endif
+  let p    = 30
+  let dir  = '-v'
+  let epar = ''
+  let wnd  = 0
+  if has_key(l:params, 'd')
+    if     l:params['d'] == '-' || l:params['d'] == 'v' | let dir='-v' | let p=30
+    elseif l:params['d'] == '|' || l:params['d'] == 'h' | let dir='-h' | let p=50
+    endif
+  endif
+  if has_key(l:params, 'wnd') | let wnd  = l:params['wnd'] | endif
+  if has_key(l:params, 'dir') | let fdir = l:params['dir'] | endif
+  if has_key(l:params, 'p')   | let p    = l:params['p']   | endif
+  if has_key(l:params, 'par') | let epar = l:params['par'] | endif
+  if l:wnd == 0
+    execute 'silent !tmux split-window ' . l:dir . ' -p ' . l:p . ' -c "' . l:fdir . '"' . ' ' . l:epar
+  else
+    execute 'silent !tmux new-window -a -c "' . l:fdir . '"' . ' ' . l:epar
+  endif
+  redraw!
+endfunction " }}}
+nnoremap <silent> <C-q>-    :call TBTmuxSplit({'d': '-'})<CR>
+nnoremap <silent> <C-q>\    :call TBTmuxSplit({'d': '<Bar>'})<CR>
+nnoremap <silent> <C-q><CR> :call TBTmuxSplit({'wnd': '1'})<CR>
+" }}}
 " }}}
 " Abbreviations {{{
 iabbr /** /************************************************************************
@@ -831,7 +987,9 @@ iabbr //- //--------------------------------------------------------------------
 " }}}
 " Mappings {{{
 " To small to catalogue {{{
-" Empty for now
+nnoremap <silent> <F12>cl :if &conceallevel == 2 <Bar> set conceallevel=0 <Bar> else <Bar> set conceallevel=2 <Bar> endif<CR>
+nnoremap <silent> <F12>gf :execute 'silent !tmux set-buffer "' . expand('%:p:~') . '"' <Bar> redraw!<CR>
+nnoremap <F12>h :Map<CR>
 " }}}
 " Arrow keys disabled {{{
 nnoremap <up> <nop>
@@ -897,7 +1055,7 @@ nnoremap <silent> j gj
 nnoremap <silent> k gk
 " }}}
 " Tig {{{
-nmap <Leader>gt :!tig -- %<CR>
+nmap <Leader>gt :!command cd %:h && tig -- %:t<CR>
 " }}}
 " Search for a file in git repo {{{
 nnoremap ?? :GFiles<CR>
@@ -1035,7 +1193,8 @@ nnoremap <silent> <Leader>lL2 ml:execute '2match'<CR>
 nmap <F12>cw :set wrap!<CR>
 " }}}
 " line marks {{{
-nmap <silent> <F12>c8 :set list! <Bar> if &list <Bar> match ErrorMsg '\s\+$' <Bar> else <Bar> match <Bar> endif<CR>
+nmap <silent> <F12>c8 :set list! <Bar> if &list <Bar> else <Bar> match <Bar> endif<CR>
+nmap <silent> <F12>c* :set list <Bar> match ErrorMsg '\s\+$'<CR>
 " }}}
 " }}}
 " build - <F12><F10>... {{{
@@ -1154,7 +1313,7 @@ endif
 for f in split(glob($BASH_PATH . '/profiles/*/inits/vim/*.vim'), '\n')
   exe 'source' f
 endfor
-if filereadable(".vimrc")
+if filereadable(".vimrc") && getcwd() != $HOME
   source .vimrc
 endif
 " }}}

@@ -95,8 +95,8 @@ let s:gb.dark3       = ['#665c54', 236]     " 102-92-84
 let s:gb.dark4       = ['#7c6f64', 239]     " 124-111-100
 let s:gb.dark4_256   = ['#7c6f64', 239]     " 124-111-100
 
-let s:gb.gray_245    = ['#928374', 242]     " 146-131-116
-let s:gb.gray_244    = ['#928374', 241]     " 146-131-116
+let s:gb.gray_245    = ['#928374', 241]     " 146-131-116
+let s:gb.gray_244    = ['#928374', 240]     " 146-131-116
 
 let s:gb.light0_hard = ['#f9f5d7', 230]     " 249-245-215
 let s:gb.light0      = ['#fbf1c7', 229]     " 253-244-193
@@ -495,7 +495,7 @@ if version >= 703
   call s:HL('ColorColumn',  s:none, s:color_column)
 
   " Concealed element: \lambda → λ
-  call s:HL('Conceal', s:blue, s:none)
+  call s:HL('Conceal', s:hls_cursor, s:none)
 
   " Line number of CursorLine
   call s:HL('CursorLineNr', s:yellow, s:bg1)
@@ -522,7 +522,7 @@ call s:HL('_m1', s:red, s:bg2)
 call s:HL('_m2', s:yellow, s:bg2)
 
 " The column separating vertically split windows
-call s:HL('VertSplit', s:yellow, s:vert_split)
+call s:HL('VertSplit', s:gb.gray_245, s:vert_split)
 
 " Current match in wildmenu completion
 call s:HL('WildMenu', s:blue, s:bg2, s:bold)
@@ -554,7 +554,7 @@ call s:HL('LineNr', s:fg4, s:bg1)
 call s:HL('SignColumn', s:none, s:sign_column)
 
 " Line used for closed folds
-call s:HL('Folded', s:gray, s:bg1, s:italic)
+call s:HL('Folded', s:gray, s:bg1)
 " Column where folds are displayed
 call s:HL('FoldColumn', s:gray, s:bg1)
 

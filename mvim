@@ -99,7 +99,7 @@ _*|*vimdiff) parsing_parameters=false;;&
              if [[ -z "$sessionFile" ]]; then # {{{
                # Session from window name # {{{
                if [[ -n $TMUX ]]; then
-                 sessionFile="$(tmux display-message -p -F '#{window_name}')"
+                 sessionFile="$(tmux display-message -p -t $TMUX_PANE -F '#{window_name}')"
                  sessionFile="${sessionFile,,}"
                  if [[ -e "Session-$sessionFile.as.vim" ]]; then
                    sessionFile="Session-$sessionFile.as.vim"

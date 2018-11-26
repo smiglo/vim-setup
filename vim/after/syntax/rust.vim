@@ -19,6 +19,6 @@ syntax match rsCuteOperator "=\@<!===\@!" conceal cchar=≟
 syntax match rsCuteOperator "!=" conceal cchar=≠
 
 hi link rsCuteOperator Operator
-hi! link Conceal Operator
 
-setlocal conceallevel=1
+setlocal conceallevel=2
+
