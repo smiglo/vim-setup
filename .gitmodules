@@ -120,3 +120,12 @@
 [submodule "git-plugins/vim-AnsiESC"]
 	path = git-plugins/vim-AnsiESC
 	url = https://github.com/systemmonkey42/vim-AnsiESC.git
+[submodule "git-plugins/vim-matchup"]
+	path = git-plugins/vim-matchup
+	url = https://github.com/andymass/vim-matchup.git
+[submodule "git-plugins/jq.vim"]
+	path = git-plugins/jq.vim
+	url = https://github.com/vito-c/jq.vim.git
+[submodule "git-plugins/vim-smooth-scroll"]
+	path = git-plugins/vim-smooth-scroll
+	url = https://github.com/terryma/vim-smooth-scroll.git

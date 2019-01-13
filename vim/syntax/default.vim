@@ -8,6 +8,7 @@ syn match entryFile      /^[A-Za-z0-9_/~%\-\.]\+:\%(\d\+\)\{0,1\}[:-]/  contains
 syn match entryLine      /\d\+[:-]/                                     contained
 syn match entryDate      /\<\%([1-2][0-9]\{3\}\)\%(0[1-9]\|1[0-2]\)\%(0[1-9]\|[1-2][0-9]\|3[0-1]\)\%(-\%([0-1][0-9]\|2[0-3]\)\%([0-5][0-9]\)\{2\}\)\{0,1\}\>\|[A-Za-z]\{3\} \d\+ \d\d:\d\d:\d\d\|\d\{4\}-\d\d-\d\d \d\d:\d\d:\d\d/
 syn match entryIssue     /\[[A-Z][A-Z0-9]\{2,\}-[1-9][0-9]\{2,\}\]\|[A-Z][A-Z0-9]\{2,\}-[1-9][0-9]\{2,\}:\|\<[A-Z][A-Z0-9]\{2,\}-[1-9][0-9]\{2,\}\>/
+syn match entryComment   /^#.*/                     contains=logMy
 syn match logMy          /\<TB] .*/                 contains=logMyInfo,logMyFunc,logMyErr,logMyImp
 syn match logMyInfo      /\<II\>/                   skipwhite contained
 syn match logMyFunc      /\<BB\>\|\<AA\>\|\<TT\>/   skipwhite contained
@@ -16,6 +17,7 @@ syn match logMyImp       /\<IMP\>/                  skipwhite
 
 hi def link entryFile       Statement
 hi def link entryLine       Comment
+hi def link entryComment    Comment
 hi def link entryDate       Type
 hi def link entryIssue      Identifier
 hi def link entryKeyword    Todo

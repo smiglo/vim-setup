@@ -138,6 +138,7 @@ esac # }}}
 # Parse arguments # {{{
 files=
 if $parsing_parameters; then
+  [[ -z $1 && ! -t 0 ]] && set -- -
   if [[ ! -z "$1" ]]; then
     while [[ ! -z "$1" ]]; do # {{{
       case $1 in # {{{

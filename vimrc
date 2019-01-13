@@ -1,8 +1,8 @@
 " vim: fdl=0 fdm=marker
 
-if $IS_MAC == 'true' && has("python3")
+if $IS_MAC == 'true' && has("python3") " {{{
   py3 ""
-endif
+endif " }}}
 " Useful stuff {{{
 " if has('win16') || has('win32') || has('win64')
 " else
@@ -49,7 +49,6 @@ set history=500                                                     " keep 500 l
 set undolevels=5000                                                 " set undolevels
 set tabpagemax=100                                                  " max number of opened tabs
 set lazyredraw                                                      " do not refresh screen when executing a macro
-set ruler                                                           " show the cursor position all the time
 set modeline                                                        " vim setup at the end of a file
 set statusline=
 set statusline+=%<\                                                 " Trim if too long
@@ -70,6 +69,7 @@ else
 endif
 set statusline+=\ %P\                                               " Percentage
 set statusline+=%*\                                                 " Right side - End
+set noruler
 set novisualbell
 set noerrorbells  " quiet
 set backspace=indent,eol,start " allow backspacing over everything in insert mode
@@ -88,7 +88,7 @@ if $VIM_UTILS_PATH != ""
 endif
 " set colorcolumn=110 "shows color column at 110
 if has("gui_macvim")
-  set guifont=Fira\ Mono:h15,Inconsolata:h17
+  set guifont=Fira\ Mono:h17,Inconsolata:h17
 else
   set guifont=Fira\ Mono\ 14,Inconsolata\ 16
 endif
@@ -104,17 +104,22 @@ set listchars=tab:\|\⋅,trail:¬,extends:\#,precedes:\#,conceal:∙
 set list     " enables list by default
 set nowrap        " wrap disabled
 let &showbreak = ' ↳ ⋅'
-set diffopt=filler,iwhite,vertical " diff switches
+if v:version > 801 || v:version == 801 && has("patch360")
+  set diffopt=indent-heuristic,algorithm:patience
+else
+  set diffopt=
+endif
+set diffopt+=filler,iwhite,vertical " diff switches
 set cryptmethod=blowfish2 " algorithm for encryption
 set undofile " persistent undo
 set undodir=$VIM_UTILS_PATH/undoes " location of persistent undo
 if $VIM_UNDOES_PATH != ""
   set undodir=$VIM_UNDOES_PATH
 endif
-set concealcursor=ncv "Unfold coneals only when editing
-" Shortens messages to avoid 'press a key' prompt
-set shortmess=afIlmnrwxoOtT
-set scrolloff=4         "Start scrolling when we're 8 lines away from margins
+set concealcursor=ncv " Unfold coneals only when editing
+set shortmess=aIoOtT  " Shortens messages to avoid 'press a key' prompt
+set cmdheight=1       " Avoid 'press enter...' message
+set scrolloff=4       " Start scrolling when we're 4 lines away from margins
 set sidescrolloff=15
 set sidescroll=1
 let g:is_bash=1
@@ -286,15 +291,25 @@ if has("autocmd")
   " Save all files when vim loses focus
   au FocusLost * silent! wa
 
-  au FileType qf,help setlocal cursorline | map <buffer> <silent> q<CR> :quit<CR>
+  au BufNewFile,BufReadPost,CmdwinEnter *
+        \ if index(['nofile', 'terminal'], &buftype) >= 0 || index(['qf', 'help', 'nofile'], &filetype) >= 0
+        \ | setlocal cursorline
+        \ | nnoremap <buffer> <space> <c-d>
+        \ | nnoremap <buffer> <silent> q<CR> :quit<CR>
+        \ | endif
+  if exists(':Terminal')
+    au TerminalOpen *
+            \ if index(['nofile', 'terminal'], &buftype) >= 0 || index(['qf', 'help', 'nofile'], &filetype) >= 0
+            \ | setlocal cursorline
+            \ | nnoremap <buffer> <space> <c-d>
+            \ | nnoremap <buffer> <silent> q<CR> :quit<CR>
+            \ | endif
+  endif
 
   au BufNewFile,BufRead * :set relativenumber " relative line numbers
 
   " with comments
   au BufNewFile,BufEnter *.c,*.h,*.java,*.jsp set formatoptions-=t
-
-  " Jump over folds
-  " au FileType * if &filetype == "qf" | | else | nnoremap <buffer> <BS> zk | vnoremap <buffer> <BS> zk | nnoremap <buffer> <CR> zj | vnoremap <buffer> <CR> zj | endif
 
   " set default filetype
   au BufEnter * if &filetype == "" || &filetype == "text" | setlocal filetype=default | endif
@@ -309,7 +324,7 @@ if has("autocmd")
   au VimResized * :wincmd =
 
   " Omni completion for file types:
-  autocmd FileType java setlocal omnifunc=javacomplet g:clang_user_options = '-std=c++11'lete#Complete | completefunc=javacomplete#CompleteParamsInfo
+  autocmd FileType java setlocal omnifunc=javacomplete#Complete | completefunc=javacomplete#CompleteParamsInfo
 
   autocmd FileType arduino set filetype=cpp
   autocmd FileType c set filetype=cpp
@@ -321,7 +336,7 @@ if has("autocmd")
   " (happens when dropping a file on gvim).
   " Also don't do it when the mark is in the first line, that is the default
   " position when opening a file.
-  autocmd BufReadPost * if line("'\"") > 1 && line("'\"") <= line("$") | exe "normal! g`\"" | endif
+  autocmd BufReadPost * if line("'\"") > 1 && line("'\"") <= line("$") | exe "normal! g`\" | zv" | endif
 
   let g:DuzyPlik = 2 " MB
   let g:DuzyPlik = g:DuzyPlik * 1024 * 1024
@@ -341,230 +356,6 @@ if !exists(":DiffOrig")
   command! DiffOrig vert new | set bt=nofile | r # | 0d_ | diffthis
       \ | wincmd p | diffthis
 endif
-" }}}
-" Plugins {{{
-" OmniCppComplete {{{
-let OmniCpp_NamespaceSearch = 1
-let OmniCpp_GlobalScopeSearch = 1
-let OmniCpp_ShowAccess = 1
-let OmniCpp_ShowPrototypeInAbbr = 1 " show function parameters
-let OmniCpp_MayCompleteDot = 1 " autocomplete after .
-let OmniCpp_MayCompleteArrow = 1 " autocomplete after ->
-let OmniCpp_MayCompleteScope = 1 " autocomplete after ::
-let OmniCpp_DefaultNamespaces = ["std", "_GLIBCXX_STD"]
-" automatically open and close the popup menu / preview window
-au CursorMovedI,InsertLeave * if pumvisible() == 0|silent! pclose|endif
-" set completeopt=menuone,menu,longest,preview
-" }}}
-" YouCompleteMe # {{{
-let g:loaded_youcompleteme = 1
-let g:ycm_auto_trigger = 1
-let g:ycm_min_num_of_chars_for_completion = 4
-let g:ycm_key_invoke_completion = '<C-f>'
-" # }}}
-" Clang-Complete {{{
-if $MY_PROJ_PATH != ''
-  let list = split(glob($MY_PROJ_PATH . '/vim/vim/third_party/ycmd/libclang.*'))
-  if ! empty(list) | let g:clang_library_path = list[0] | endif
-  unlet list
-endif
-let g:clang_user_options = '-std=c++11'
-if $IS_MAC == 'true'
-  let g:clang_library_path = '/usr/local/Cellar/llvm/7.0.0/lib/libclang.dylib'
-endif
-let g:clang_snippets = 0
-" let g:clang_snippets_engine = 'clang_complete'
-nnoremap <silent> <Leader>cc :silent :call g:ClangUpdateQuickFix() <Bar> :copen<CR>
-" }}}
-" Jedi # {{{
-let g:jedi#completions_command = "<C-N>"
-if has("python3")
-  let g:jedi#force_py_version = "3.7"
-endif
-" }}}
-" Fugitive {{{
-nmap <Leader>gs :Gstatus<CR>
-" }}}
-" Cscope {{{
-if has("cscope")
-  set csprg=/usr/bin/cscope
-  if $IS_MAC == 'true'
-    set csprg=/usr/local/bin/cscope
-  endif
-  set nocsverb
-  " searching cscope database firts, then tags
-  set csto=0
-  " ctrl+] uses cstag
-  set cst
-  " use quickfix window and clear it first
-"   set cscopequickfix=s-,g-,d-,c-,t-,e-,f-,i-
-endif
-" }}}
-" Buffest # {{{
-map <Leader>c,l <Plug>Loclistsplit
-map <Leader>c,q <Plug>Qflistsplit
-map <Leader>c@ <Plug>Regsplit
-nnoremap <Leader>c@@ :Regsplit "<cr>
-" }}}
-" BufExplorer {{{
-let g:bufExplorerDefaultHelp=0
-let g:bufExplorerShowDirectories=0
-let g:bufExplorerShowRelativePath=1  " Show relative paths.
-let g:bufExplorerShowNoName=1        " Show 'No Name' buffers.
-let g:bufExplorerShowUnlisted=0      " Show unlisted buffers.
-let g:bufExplorerSortBy='name'       " Sort by the buffer's name.
-nnoremap <silent> <F10>bb :BufExplorerVerticalSplit<CR>
-nnoremap <silent> <F10>bt :ToggleBufExplorer<CR>
-nnoremap <silent> <F10>bh :BufExplorerHorizontalSplit<CR>
-" }}}
-" Tagbar {{{
-nnoremap <silent> <F10>T :TlistToggle<CR>
-nnoremap <silent> <F10>t :TagbarToggle<CR>
-let g:tagbar_left=1
-let g:tagbar_compact=1
-let g:tagbar_autofocus=1
-" let g:tagbar_autoclose=1
-" }}}
-" NERDTreeToggle {{{
-function! NERDTreeToggleInCurDir()
-  " If NERDTree is open in the current buffer
-  if (exists("t:NERDTreeBufName") && bufwinnr(t:NERDTreeBufName) != -1)
-    exe ":NERDTreeClose"
-  else
-    exe ":NERDTreeFind"
-  endif
-endfunction
-nmap <F10>f :call NERDTreeToggleInCurDir()<CR>
-" }}}
-" Signature {{{
-let g:SignaturePurgeConfirmation=1
-" }}}
-" FZF {{{
-if $FZF_INSTALLED ==? "true"
-  let g:loaded_ctrlp = 1 " Disables Ctrl-P
-  set runtimepath+=$SCRIPT_PATH/bash/inits/fzf
-  nnoremap <silent> <c-p>   :Files<CR>
-  nnoremap <silent> ,f      :Files<CR>
-  nnoremap <silent> ,g      :GFiles<CR>
-  nnoremap          ,L      :Lines<CR>
-  nnoremap          ,l      :BLines<CR>
-  nnoremap          ,*      :Ag <c-r>=expand("<cword>")<cr><CR>
-  nnoremap          ,ag     :Ag <c-r>=expand("<cword>")<cr><CR>
-  nnoremap          ,bt     :BTags <c-r>=expand("<cword>")<cr><CR>
-  nnoremap <silent> ,/      :History/<CR>
-  nnoremap <silent> ,m      :Marks<CR>
-  nnoremap <silent> ,fzbu   :Buffers<CR>
-  nnoremap          ,fzbl   :BLines<space>
-  nnoremap <silent> ,fzhi   :History<CR>
-  nnoremap <silent> ,fzh:   :History:<CR>
-  nnoremap          ,fzt    :Tags<space>
-  let g:fzf_colors = {
-      \ 'hl':      ['fg', 'Search'],
-      \ 'fg':      ['fg', 'Normal', 'CursorColumn', 'Normal'],
-      \ 'fg+':     ['fg', 'CursorLine', 'CursorColumn', 'Normal'],
-      \ 'bg+':     ['bg', 'CursorLine', 'CursorColumn'],
-      \ 'hl+':     ['fg', 'Function'],
-      \ 'prompt':  ['fg', 'Function'],
-      \ 'pointer': ['fg', 'Identifier'],
-      \ 'marker':  ['fg', 'Keyword'],
-      \ }
-endif
-" }}}
-" Clever-F {{{
-let g:clever_f_fix_key_direction = 1
-let g:clever_f_across_no_line = 1
-let g:clever_f_mark_cursor = 1
-let g:clever_f_mark_char_color = 'IncSearch'
-let g:clever_f_repeat_last_char_inputs = ["\<CR>", "\<Tab>"]
-" }}}
-" Ctrl-P {{{
-if ! exists("g:loaded_ctrlp") || g:loaded_ctrlp == 0
-  let g:ctrlp_working_path_mode = 'a'
-  let g:ctrlp_max_files = 0
-  let g:ctrlp_match_window = 'bottom,order:ttb,min:1,max:10,results:100'
-  let g:ctrlp_clear_cache_on_exit = 0
-  " let g:ctrlp_show_hidden = 1
-  if exists("g:ctrlp_custom_ignore")
-    unlet g:ctrlp_custom_ignore
-  endif
-  let g:ctrlp_custom_ignore = {
-        \ 'dir':  '\v[\/](\.(git|hg|svn))|(' . $VIM_CTRLP_IGNORE_DIRS . ')$',
-        \ 'file': '\v\.(class|exe|so|dll|o|tar|tgz)$',
-        \ }
-  " let g:ctrlp_arg_map = 1
-  " let g:ctrlp_lazy_update = 50
-  " let g:ctrlp_default_input = 1
-endif
-" }}}
-" Scratch {{{
-let g:scratch_persistence_file = $VIM_UTILS_PATH . '/scratch.txt'
-let g:scratch_filetype = 'default'
-let g:scratch_insert_autohide = 1
-let g:scratch_no_mappings = 1
-nmap <F12>gs  <plug>(scratch-insert-reuse)
-nmap <F12>gS  <plug>(scratch-insert-clear)
-xmap <F12>gs  <plug>(scratch-selection-reuse)
-xmap <F12>gS  <plug>(scratch-selection-clear)
-nmap <F12>gSP :ScratchPreview<CR>
-" }}}
-" Cheat {{{
-let g:CheatDoNotReplaceKeywordPrg=1
-" }}}
-" Ag-Ack {{{
-if executable('ag')
-  let g:ackprg = 'ag $AG_OPTIONS --vimgrep'
-endif
-" }}}
-" Maximizer {{{
-let g:maximizer_set_default_mapping = 1
-let g:maximizer_default_mapping_key = '<F3>'
-" }}}
-" Gundo {{{
-if has("python") || has("python3")
-  nnoremap <Leader>u :GundoToggle<CR>
-  if has("python3")
-    let g:gundo_prefer_python3 = 1
-  endif
-else
-  nnoremap <Leader>u :echo "Vim without python support"<CR>
-endif
-" }}}
-" Tabline # {{{
-let g:tabline_path='short'
-let g:tabline_max=20
-" }}}
-" VimWiki # {{{
-if $VIM_WIKIS != ""
-  let g:vimwiki_list = eval( '[' . $VIM_WIKIS . ']' )
-endif
-" }}}
-" Syntastic {{{
-let g:loaded_syntastic_plugin = 1 " Disable the plugin
-let g:syntastic_always_populate_loc_list = 1
-let g:syntastic_auto_loc_list = 0
-let g:syntastic_check_on_open = 1
-let g:syntastic_check_on_wq = 0
-" let g:syntastic_cpp_compiler = 'clang++'
-" let g:syntastic_cpp_compiler_options = ' -std=c++11 -stdlib=libc++'
-let g:syntastic_cpp_compiler = 'g++'
-let g:syntastic_cpp_compiler_options = ' -std=c++11'
-let g:syntastic_cpp_remove_include_errors = 1
-let g:syntastic_cpp_check_header = 1
-" }}}
-" Man # {{{
-nnoremap <expr> K ':Man ' . expand('<cword>') . '<CR>'
-nnoremap <expr> <Leader>k ':Man 3 ' . expand('<cword>') . '<CR>'
-" }}}
-" ConqureGdb # {{{
-if has("python3")
-  let g:ConqueTerm_PyVersion = 3
-else
-  let g:ConqueGdb_Disable = 1
-endif
-" }}}
-" KickFix # {{{
-let g:kickfix_zebra=0
-" }}}
 " }}}
 " My Own {{{
 " Functions & Commands{{{
@@ -637,8 +428,8 @@ function! TBOpenFile(...)
     else
       return
     endif
-    if filereadable(l:file . '.' . l:ext)            | let file .= l:ext
-    elseif filereadable(l:file . '.' . l:ext . 'pp') | let file .= l:ext . 'pp'
+    if filereadable(l:file . '.' . l:ext)            | let file .= '.' . l:ext
+    elseif filereadable(l:file . '.' . l:ext . 'pp') | let file .= '.' . l:ext . 'pp'
     else
       if expand('%:p:.') =~ "^/" | return | endif
       let file = expand('%:t:r')
@@ -906,7 +697,7 @@ function! TBSBExtraInfo() " {{{
   return l:ret[1:]
 endfunction " }}}
 function! TBSBFilename(mode) " {{{
-  let fName = expand('%')
+  let fName = substitute(expand('%'),'^\./\(.*\)', '\1', '')
   let ret = ''
   let predefined = {
         \ 'nofile' : '[Scratch]',
@@ -989,7 +780,12 @@ iabbr //- //--------------------------------------------------------------------
 " To small to catalogue {{{
 nnoremap <silent> <F12>cl :if &conceallevel == 2 <Bar> set conceallevel=0 <Bar> else <Bar> set conceallevel=2 <Bar> endif<CR>
 nnoremap <silent> <F12>gf :execute 'silent !tmux set-buffer "' . expand('%:p:~') . '"' <Bar> redraw!<CR>
-nnoremap <F12>h :Map<CR>
+nnoremap          <F12>h  :Map<CR>
+inoremap <expr>   ;;      pumvisible() ? "<C-e>" : "<Esc>"
+inoremap          ;;;     ;;
+" <c-i> is the same as <tab> and tab is changed to "%", thus <c-l> map the
+" behaviour of <c-i>, i.e. jump to newer cursor position in jump list
+noremap           <c-l>   <c-i>
 " }}}
 " Arrow keys disabled {{{
 nnoremap <up> <nop>
@@ -1028,8 +824,8 @@ vnoremap // '<'>\|I//
 " Fold {{{
 noremap  <Leader>{ mmA # {{{<ESC>`mmm
 noremap  <Leader>} mmA # }}}<ESC>`mmm
-vnoremap <Leader>{ <ESC>mm'<A # {{{<ESC>'>A # }}}<ESC>`mmmgv
-vnoremap <Leader>} <ESC>mm'<A # {{{<ESC>'>A # }}}<ESC>`mmmgv
+vnoremap <Leader>{ <ESC>mm'<A # {{{<ESC>'>A # }}}<ESC>`mmm
+vnoremap <Leader>} <ESC>mm'<A # {{{<ESC>'>A # }}}<ESC>`mmm
 " }}}
 " search for highlighted text {{{
 vnoremap */ y/<C-R>"<CR>
@@ -1065,8 +861,10 @@ nnoremap <up>   
 nnoremap <down> 
 " }}}
 " Tab key moves to the matched bracket {{{
-nnoremap <Tab> %
-vnoremap <Tab> %
+if !exists("g:matchup_matchparen_status_offscreen")
+  nnoremap <Tab> %
+  vnoremap <Tab> %
+endif
 " }}}
 " Help key disabled {{{
 noremap <F1> <nop>
@@ -1316,5 +1114,256 @@ endfor
 if filereadable(".vimrc") && getcwd() != $HOME
   source .vimrc
 endif
+" }}}
+" Plugins {{{
+" OmniCppComplete {{{
+let OmniCpp_NamespaceSearch = 1
+let OmniCpp_GlobalScopeSearch = 1
+let OmniCpp_ShowAccess = 1
+let OmniCpp_ShowPrototypeInAbbr = 1 " show function parameters
+let OmniCpp_MayCompleteDot = 1 " autocomplete after .
+let OmniCpp_MayCompleteArrow = 1 " autocomplete after ->
+let OmniCpp_MayCompleteScope = 1 " autocomplete after ::
+let OmniCpp_DefaultNamespaces = ["std", "_GLIBCXX_STD"]
+" automatically open and close the popup menu / preview window
+au CursorMovedI,InsertLeave * if pumvisible() == 0|silent! pclose|endif
+" set completeopt=menuone,menu,longest,preview
+" }}}
+" YouCompleteMe # {{{
+let g:loaded_youcompleteme = 1
+let g:ycm_auto_trigger = 1
+let g:ycm_min_num_of_chars_for_completion = 4
+let g:ycm_key_invoke_completion = '<C-f>'
+" # }}}
+" Clang-Complete {{{
+if $MY_PROJ_PATH != ''
+  let list = split(glob($MY_PROJ_PATH . '/vim/vim/third_party/ycmd/libclang.*'))
+  if ! empty(list) | let g:clang_library_path = list[0] | endif
+  unlet list
+endif
+let g:clang_user_options = '-std=c++11'
+if $IS_MAC == 'true'
+  let g:clang_library_path = '/usr/local/Cellar/llvm/7.0.0/lib/libclang.dylib'
+endif
+let g:clang_snippets = 0
+" let g:clang_snippets_engine = 'clang_complete'
+nnoremap <silent> <Leader>cc :silent :call g:ClangUpdateQuickFix() <Bar> :copen<CR>
+" }}}
+" Jedi # {{{
+let g:jedi#completions_command = "<C-N>"
+if has("python3")
+  let g:jedi#force_py_version = "3.7"
+endif
+" }}}
+" Fugitive {{{
+nmap <Leader>gs :Gstatus<CR>
+" }}}
+" Cscope {{{
+if has("cscope")
+  set csprg=/usr/bin/cscope
+  if $IS_MAC == 'true'
+    set csprg=/usr/local/bin/cscope
+  endif
+  set nocsverb
+  " searching cscope database firts, then tags
+  set csto=0
+  " ctrl+] uses cstag
+  set cst
+  " use quickfix window and clear it first
+"   set cscopequickfix=s-,g-,d-,c-,t-,e-,f-,i-
+endif
+" }}}
+" Buffest # {{{
+map <Leader>c,l <Plug>Loclistsplit
+map <Leader>c,q <Plug>Qflistsplit
+map <Leader>c@ <Plug>Regsplit
+nnoremap <Leader>c@@ :Regsplit "<cr>
+" }}}
+" BufExplorer {{{
+let g:bufExplorerDefaultHelp=0
+let g:bufExplorerShowDirectories=0
+let g:bufExplorerShowRelativePath=1  " Show relative paths.
+let g:bufExplorerShowNoName=1        " Show 'No Name' buffers.
+let g:bufExplorerShowUnlisted=0      " Show unlisted buffers.
+let g:bufExplorerSortBy='name'       " Sort by the buffer's name.
+nnoremap <silent> <F10>bb :BufExplorerVerticalSplit<CR>
+nnoremap <silent> <F10>bt :ToggleBufExplorer<CR>
+nnoremap <silent> <F10>bh :BufExplorerHorizontalSplit<CR>
+" }}}
+" Tagbar {{{
+nnoremap <silent> <F10>T :TlistToggle<CR>
+nnoremap <silent> <F10>t :TagbarToggle<CR>
+let g:tagbar_left=1
+let g:tagbar_compact=1
+let g:tagbar_autofocus=1
+" let g:tagbar_autoclose=1
+" }}}
+" NERDTreeToggle {{{
+function! NERDTreeToggleInCurDir()
+  " If NERDTree is open in the current buffer
+  if (exists("t:NERDTreeBufName") && bufwinnr(t:NERDTreeBufName) != -1)
+    exe ":NERDTreeClose"
+  else
+    exe ":NERDTreeFind"
+  endif
+endfunction
+nmap <F10>f :call NERDTreeToggleInCurDir()<CR>
+" }}}
+" Signature {{{
+let g:SignaturePurgeConfirmation=1
+" }}}
+" FZF {{{
+if $FZF_INSTALLED ==? "true"
+  let g:loaded_ctrlp = 1 " Disables Ctrl-P
+  set runtimepath+=$SCRIPT_PATH/bash/inits/fzf
+  nnoremap <silent> <c-p>   :Files<CR>
+  nnoremap <silent> ,f      :Files<CR>
+  nnoremap <silent> ,g      :GFiles<CR>
+  nnoremap          ,L      :Lines<CR>
+  nnoremap          ,l      :BLines<CR>
+  nnoremap          ,*      :Ag <c-r>=expand("<cword>")<cr><CR>
+  nnoremap          ,ag     :Ag <c-r>=expand("<cword>")<cr><CR>
+  nnoremap          ,bt     :BTags <c-r>=expand("<cword>")<cr><CR>
+  nnoremap <silent> ,/      :History/<CR>
+  nnoremap <silent> ,m      :Marks<CR>
+  nnoremap <silent> ,fzbu   :Buffers<CR>
+  nnoremap          ,fzbl   :BLines<space>
+  nnoremap <silent> ,fzhi   :History<CR>
+  nnoremap <silent> ,fzh:   :History:<CR>
+  nnoremap          ,fzt    :Tags<space>
+  let g:fzf_colors = {
+      \ 'hl':      ['fg', 'Search'],
+      \ 'fg':      ['fg', 'Normal', 'CursorColumn', 'Normal'],
+      \ 'fg+':     ['fg', 'CursorLine', 'CursorColumn', 'Normal'],
+      \ 'bg+':     ['bg', 'CursorLine', 'CursorColumn'],
+      \ 'hl+':     ['fg', 'Function'],
+      \ 'prompt':  ['fg', 'Function'],
+      \ 'pointer': ['fg', 'Identifier'],
+      \ 'marker':  ['fg', 'Keyword'],
+      \ }
+endif
+" }}}
+" Clever-F {{{
+let g:clever_f_fix_key_direction = 1
+let g:clever_f_across_no_line = 1
+let g:clever_f_mark_cursor = 1
+let g:clever_f_mark_char_color = 'IncSearch'
+let g:clever_f_repeat_last_char_inputs = ["\<CR>", "\<Tab>"]
+" }}}
+" Ctrl-P {{{
+if ! exists("g:loaded_ctrlp") || g:loaded_ctrlp == 0
+  let g:ctrlp_working_path_mode = 'a'
+  let g:ctrlp_max_files = 0
+  let g:ctrlp_match_window = 'bottom,order:ttb,min:1,max:10,results:100'
+  let g:ctrlp_clear_cache_on_exit = 0
+  " let g:ctrlp_show_hidden = 1
+  if exists("g:ctrlp_custom_ignore")
+    unlet g:ctrlp_custom_ignore
+  endif
+  let g:ctrlp_custom_ignore = {
+        \ 'dir':  '\v[\/](\.(git|hg|svn))|(' . $VIM_CTRLP_IGNORE_DIRS . ')$',
+        \ 'file': '\v\.(class|exe|so|dll|o|tar|tgz)$',
+        \ }
+  " let g:ctrlp_arg_map = 1
+  " let g:ctrlp_lazy_update = 50
+  " let g:ctrlp_default_input = 1
+endif
+" }}}
+" Scratch {{{
+let g:scratch_persistence_file = $VIM_UTILS_PATH . '/scratch.txt'
+let g:scratch_filetype = 'default'
+let g:scratch_insert_autohide = 1
+let g:scratch_no_mappings = 1
+nmap <F12>gs  <plug>(scratch-insert-reuse)
+nmap <F12>gS  <plug>(scratch-insert-clear)
+xmap <F12>gs  <plug>(scratch-selection-reuse)
+xmap <F12>gS  <plug>(scratch-selection-clear)
+nmap <F12>gSP :ScratchPreview<CR>
+" }}}
+" Cheat {{{
+let g:CheatDoNotReplaceKeywordPrg=1
+" }}}
+" Ag-Ack {{{
+if executable('ag')
+  let g:ackprg = 'ag $AG_OPTIONS --vimgrep'
+endif
+" }}}
+" Maximizer {{{
+let g:maximizer_set_default_mapping = 1
+let g:maximizer_default_mapping_key = '<F3>'
+" }}}
+" Gundo {{{
+if has("python") || has("python3")
+  nnoremap <Leader>u :GundoToggle<CR>
+  if has("python3")
+    let g:gundo_prefer_python3 = 1
+  endif
+else
+  nnoremap <Leader>u :echo "Vim without python support"<CR>
+endif
+" }}}
+" Tabline # {{{
+let g:tabline_path='short'
+let g:tabline_max=20
+" }}}
+" VimWiki # {{{
+if $VIM_WIKIS != ""
+  let g:vimwiki_list = eval( '[' . $VIM_WIKIS . ']' )
+endif
+" }}}
+" Syntastic {{{
+let g:loaded_syntastic_plugin = 1 " Disable the plugin
+let g:syntastic_always_populate_loc_list = 1
+let g:syntastic_auto_loc_list = 0
+let g:syntastic_check_on_open = 1
+let g:syntastic_check_on_wq = 0
+" let g:syntastic_cpp_compiler = 'clang++'
+" let g:syntastic_cpp_compiler_options = ' -std=c++11 -stdlib=libc++'
+let g:syntastic_cpp_compiler = 'g++'
+let g:syntastic_cpp_compiler_options = ' -std=c++11'
+let g:syntastic_cpp_remove_include_errors = 1
+let g:syntastic_cpp_check_header = 1
+" }}}
+" Man # {{{
+nnoremap <expr> K ':Man ' . expand('<cword>') . '<CR>'
+nnoremap <expr> <Leader>k ':Man 3 ' . expand('<cword>') . '<CR>'
+" }}}
+" ConqureGdb # {{{
+if has("python3")
+  let g:ConqueTerm_PyVersion = 3
+else
+  let g:ConqueGdb_Disable = 1
+endif
+" }}}
+" KickFix # {{{
+let g:kickfix_zebra=0
+" }}}
+" Match-up {{{
+nmap %       <plug>(matchup-%)
+vmap %       <plug>(matchup-%)
+nmap <Tab>   <plug>(matchup-%)
+vmap <Tab>   <plug>(matchup-%)
+nmap g<Tab>  <Plug>(matchup-g%)
+vmap g<Tab>  <Plug>(matchup-g%)
+nmap z<Tab>  <Plug>(matchup-z%)
+vmap z<Tab>  <Plug>(matchup-z%)
+nmap cs<Tab> <Plug>(matchup-cs%)
+nmap ds<Tab> <Plug>(matchup-ds%)
+vmap a<Tab>  <Plug>(matchup-a%)
+vmap i<Tab>  <Plug>(matchup-i%)
+let g:matchup_matchparen_status_offscreen = 0
+let g:matchup_matchparen_scrolloff = 1
+" }}}
+" CMake " {{{
+let g:loaded_cmake = 1
+" }}}
+" Smooth Scroll " {{{
+noremap <silent> <c-u>  :call smooth_scroll#up(&scroll, 14, 2)<CR>
+noremap <silent> <up>   :call smooth_scroll#up(&scroll, 14, 2)<CR>
+noremap <silent> <c-d>  :call smooth_scroll#down(&scroll, 14, 2)<CR>
+noremap <silent> <down> :call smooth_scroll#down(&scroll, 14, 2)<CR>
+noremap <silent> <c-b>  :call smooth_scroll#up(&scroll*2, 14, 4)<CR>
+noremap <silent> <c-f>  :call smooth_scroll#down(&scroll*2, 14, 4)<CR>
+" }}}
 " }}}
 
