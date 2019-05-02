@@ -495,7 +495,7 @@ if version >= 703
   call s:HL('ColorColumn',  s:none, s:color_column)
 
   " Concealed element: \lambda → λ
-  call s:HL('Conceal', s:hls_cursor, s:none)
+  call s:HL('Conceal', s:gray, s:none, s:bold)
 
   " Line number of CursorLine
   call s:HL('CursorLineNr', s:yellow, s:bg1)
@@ -517,7 +517,7 @@ call s:HL('StatusLineNC', s:bg1, s:fg4, s:inverse)
 call s:HL('StatusLineMark', s:bg1, s:green, s:bold)
 call s:HL('StatusLineLoc',  s:bg1, s:fg1, s:inverse)
 
-call s:HL('logMy', s:red)
+call s:HL('logMy', s:green)
 call s:HL('_m1', s:red, s:bg2)
 call s:HL('_m2', s:yellow, s:bg2)
 

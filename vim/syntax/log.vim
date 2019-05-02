@@ -5,57 +5,53 @@ endif
 set nolist
 setlocal cursorline
 
-" Pattern for personal debugs
-syn match logMy        /\<TB] .*/                contains=logMyInfo,logMyFunc,logMyErr,logMyImp
-syn match logMyInfo    /\<II\>/                  skipwhite
-syn match logMyFunc    /\<BB\>\|\<AA\>\|\<TT\>/  skipwhite
-syn match logMyErr     /\<EE\>\|\<FF\>/          skipwhite
-syn match logMyImp     /\<IMP\>/                 skipwhite
+source ~/.vim/syntax/syntax-common.vim
 
-syn match logStack /^\%(-\s\)*\%(Exception\|Registers\|Stack Dump\|reg\|pc\|ra\|PC\|Signal\).*/
+syn match logStack       /^\%(-\s\)*\<\%(Exception\|Registers\|Stack Dump\|reg\|pc\|ra\|PC\|Signal\)\>.*/
 
-syn match logFile /^[A-Za-z0-9_/~%\-\.]\{5,\}:\%(\d\+\)\{0,1\}[:-]/ contains=logLine nextgroup=logTime
-syn match logLine /\d\+[:-]/                                        contained
+syn match logFile        /^[A-Za-z0-9_/~%\-\.]\{5,\}:\%(\d\+\)\{0,1\}[:-]/                                                     conceal cchar=∙ nextgroup=logTime contains=logLine
 
-syn match logTime      /[A-Za-z]\{3\} \d\+ \d\d:\d\d:\d\d\|\d\{4\}-\d\d-\d\d \d\d:\d\d:\d\d/                             nextgroup=logId,logMy,logIssue,logDebug,logWarning,logError,logFatal
-syn match logTime      /\d\d:\d\d:\d\d/                                                                  conceal cchar=∙ nextgroup=logId,logMy,logIssue,logDebug,logWarning,logError,logFatal
-syn match logId        /[0-9A-F]\{6\}-[A-Z]\+-\d\+\s\{0,1\}/                                             conceal cchar=∙ nextgroup=logException,logMy,logIssue,logDebug,logWarning,logError,logFatal
-syn match logId        /\[\d\+\]:\{0,1\}\|\[\d\+\]\s\{0,1\}\|\[tid=\d\+\]\s\{0,1\}/                      conceal cchar=∙ nextgroup=logException,logMy,logIssue,logDebug,logWarning,logError,logFatal
-syn match logId        /\d\{6}-\d\d:\d\d:\d\d\.\d\{6\}\s\{0,1\}\|\[[0-9\-]\+T[0-9:.]\+Z\]\s\{0,1\}/      conceal cchar=∙ nextgroup=logException,logMy,logIssue,logDebug,logWarning,logError,logFatal
-syn match logId        /\[mod=[A-Z][^\]]*\]\s\{0,1\}/                                                    conceal cchar=∙ nextgroup=logException,logMy,logIssue,logDebug,logWarning,logError,logFatal
-syn match logException /.*Exception.*\|.*\<at .*/                                                        contained       nextgroup=logMy
-syn match logIssue     /\[[A-Z][A-Z0-9]\{2,\}-[1-9][0-9]\{2,\}\]\|[A-Z][A-Z0-9]\{2,\}-[1-9][0-9]\{2,\}:\|\<[A-Z][A-Z0-9]\{2,\}-[1-9][0-9]\{2,\}\>/
+syn match logTime        /\s*\<\d\d:\d\d:\d\d\>/                                                                                               nextgroup=logId,logMy,logIssue,logDebug,logInfo,logWarning,logError,logFatal,logValue
+syn match logTime        /\<\(Jan\|Feb\|Mar\|Apr\|Jun\|Jul\|Aug\|Sep\|Oct\|Nov\|Dec\)\> \d\+\s*/                               conceal cchar=∙ nextgroup=logTime
+syn match logTime        /\s*\[\{0,1\}\<\d\{4\}-\d\d-\d\d\>\%( \d\d:\d\d:\d\d\)\{0,1\}\]\{0,1\}\s*/                            conceal cchar=∙ nextgroup=logTime
+syn match logTime        /\s*\<\%(\d\+-\)\{0,1\}\d\{1,2\}:\d\d:\d\d[:.]\d\+\>/                                                 conceal cchar=∙ nextgroup=logId,logMy,logIssue,logDebug,logInfo,logWarning,logError,logFatal,logValue
+syn match logModule      /\<[0-9a-zA-Z.\-_]\+\[\d\+]:\s*/                                                                                      nextgroup=logException,logMy,logIssue,logDebug,logInfo,logWarning,logError,logFatal,logTime,logValue contained contains=logId
+syn match logModule      /^\<[0-9a-zA-Z.\-_]\+\%(\[\d\+]\)\{0,1\}:\s*/                                                                         nextgroup=logException,logMy,logIssue,logDebug,logInfo,logWarning,logError,logFatal,logTime,logValue contains=logId
+syn match logId          /\s*\<\x\{6\}-[A-Z]\+-\d\+\s*/                                                                        conceal cchar=∙ nextgroup=logModule,logException,logMy,logIssue,logDebug,logInfo,logWarning,logError,logFatal,logTime,logValue
+syn match logId          /\s*\%(\[\d\+\]:\{0,1\}\|\[\d\+\]\s\{0,1\}\s*\|\[tid=\d\+\]\)\s*/                                     conceal cchar=∙ nextgroup=logException,logMy,logIssue,logDebug,logInfo,logWarning,logError,logFatal,logTime,logValue
+syn match logId          /\s*\%(\<\d\{6}-\d\d:\d\d:\d\d\.\d\{6\}\s\{0,1\}\>\|\[\{0,1\}[0-9\-]\+T[0-9:.]\+Z\]\{0,1\}\)\s*/      conceal cchar=∙ nextgroup=logException,logMy,logIssue,logDebug,logInfo,logWarning,logError,logFatal,logTime,logValue
+syn match logId          /\s*\[mod=[A-Z][^\]]*\]\s*/                                                                           conceal cchar=∙ nextgroup=logException,logMy,logIssue,logDebug,logInfo,logWarning,logError,logFatal,logTime,logValue
+syn match logException   /.*Exception .*/                                                                                                      nextgroup=logMy contained
+syn match logException   /\s*\<at .*(\/.*:\d\+:\d\+).*/                                                                        conceal cchar=∙ nextgroup=logMy contained
+syn match logIssue       /\[[A-Z][A-Z0-9]\{2,\}-[1-9][0-9]\{2,\}\]\|[A-Z][A-Z0-9]\{2,\}-[1-9][0-9]\{2,\}:\|\<[A-Z][A-Z0-9]\{2,\}-[1-9]\d\{2,\}\>/
+syn match logTmp         //                                                                                                  conceal cchar=∙
+syn match logTmp         /\s*\[\d\+. blob data\]/                                                                              conceal cchar=∙
 
-syn match logDebug     /\[DEBUG\]/    contains=logFile,logTime  skipwhite
-syn match logWarning   /\[WARNING\]/  contains=logFile,logTime  skipwhite
-syn match logError     /\[ERROR\]/    contains=logFile,logTime  skipwhite
-syn match logFatal     /\[FATAL\]/    contains=logFile,logTime  skipwhite
+syn match logDebug       /\[TRACE\]:\{0,1\}/     skipwhite conceal cchar=T
+syn match logDebug       /\[DEBUG\]:\{0,1\}/     skipwhite conceal cchar=D
+syn match logInfo        /\[INFO\]:\{0,1\}/      skipwhite conceal cchar=I
+syn match logWarning     /\[WARNING\]:\{0,1\}/   skipwhite conceal cchar=W
+syn match logWarning     /\[WARN\]:\{0,1\}/      skipwhite conceal cchar=W
+syn match logError       /\[ERROR\]:\{0,1\}/     skipwhite conceal cchar=E
+syn match logFatal       /\[FATAL\]:\{0,1\}/     skipwhite conceal cchar=F
 
-syn keyword errorKeyword  error
-syn keyword warnKeyword   warning
+syn keyword errorKeyword error
+syn keyword warnKeyword  warning
 
-if !exists("did_logannotate_syntax_inits")
-  let did_logannotate_syntax_inits = 1
-  hi def link logId          Comment
-  hi def link logStack       Error
-  hi def link logFile        Statement
-  hi def link logLine        Comment
-  hi def link logTime        Special
-  hi def link logIssue       Identifier
-  hi def link logException   ErrorMsg
-  hi def link logWarning     WarningMsg
-  hi def link logDebug       Normal
-  hi def link logMessage     Normal
-  hi def link logError       ErrorMsg
-  hi def link logFatal       ErrorMsg
-  hi def link logMyInfo      ModeMsg
-  hi def link logMyFunc      Function
-  hi def link logMyErr                    Error
-  hi def link logMyImp                    WildMenu
-  hi errorKeyword       ctermfg=1   cterm=bold,underline
-  hi warnKeyword        ctermfg=178 cterm=bold,underline
-endif
-hi def link logId Type
+hi! def link logId          Comment
+hi! def link logTmp         Comment
+hi! def link logStack       Error
+hi! def link logModule      PreProc
+hi! def link logTime        Special
+hi! def link logIssue       Constant
+hi! def link logException   ErrorMsg
+hi! def link logDebug       Comment
+hi! def link logInfo        Comment
+hi! def link logWarning     WarningMsg
+hi! def link logError       ErrorMsg
+hi! def link logFatal       ErrorMsg
+hi! errorKeyword            ctermfg=1   cterm=bold,underline
+hi! warnKeyword             ctermfg=178 cterm=bold,underline
 
 let b:current_syntax="logSyntax"
 

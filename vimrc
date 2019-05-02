@@ -452,8 +452,8 @@ function! TBOpenFile(...)
 endfunction
 " }}}
 " Resizing splits {{{
-function! Resize(dir) range " {{{
-  let c=v:count
+function! Resize(dir) " {{{
+  let c = v:count
   let this = winnr()
   if 'down' == a:dir
     execute "normal \<c-w>k"
@@ -523,7 +523,7 @@ function! RelTabEdit(file)
   execute "tabedit " . l:p
 endfunction
 " }}}
-" command output redirecting {{{
+" Command output redirecting {{{
 function! TabMessage(cmd)
   if a:cmd =~ '!.*'
     tabnew
@@ -719,11 +719,15 @@ function! TBSBFilename(mode) " {{{
   if strlen(l:fName) > l:maxLen
     let fName = substitute(l:fName,'\([^/]*\)/.*/\(.*\)', '\1/.../\2', 'g')
     let fNameFull = expand('%:p')
-    if fNameFull =~ '^' . getcwd()
+    if fNameFull =~ '^' . getcwd() && getcwd() != $HOME
       " nop
     elseif fNameFull =~ '^' . $HOME
       let firstDir = substitute(l:fNameFull, $HOME . '\(/[^/]*\)/.*', '\1', 'g')
       let fName = '~' . l:firstDir . l:fName
+    elseif fNameFull =~ '^[a-z0-9]\+://'
+      let host = substitute(l:fNameFull, '[a-z0-9]\+://\%([^/]*@\)\{0,1\}\([^/]*\)/.*', '\1', 'g')
+      let fName = substitute(l:fName,'\([^/]*\)/.*/\(.*\)', '\2', 'g')
+      let fName = l:host . ':/.../' . l:fName
     else
       let firstDir = substitute(l:fNameFull,'\(/[^/]*\)/.*', '\1', 'g')
       let fName = l:firstDir . l:fName
@@ -740,7 +744,28 @@ function! TBSBFilenameToggle() " {{{
 endfunction " }}}
 nnoremap <silent> <F12>cf :silent call TBSBFilenameToggle()<CR>
 " }}}
-" Oth {{{
+" Skip Conceals " {{{
+function! TBSkipConceal(count, dir)
+  let cnt = a:count
+  let c   = col('.')
+  let l   = line('.')
+  let lc  = 1
+  if a:dir == 1 | let lc = col('$') | endif
+  while cnt && c != lc
+    let c += a:dir
+    if stridx(&concealcursor, 'n') != -1 && synconcealed(l, c)[0] == 1
+      while c != lc && synconcealed(l, c)[0] | let c += a:dir | endwhile
+    endif
+    let cnt -= 1
+  endwhile
+  if a:dir == 1 | exec "normal! ".(c-col('.'))."l"
+  else          | exec "normal! ".(col('.')-c)."h"
+  endif
+endfunction
+nnoremap <silent> l :<C-U>call TBSkipConceal(v:count1,  1)<CR>
+nnoremap <silent> h :<C-U>call TBSkipConceal(v:count1, -1)<CR>
+" }}}
+" Tmux Split {{{
 function! TBTmuxSplit(...) " {{{
   let params = {}
   if a:0 >= 1 | let l:params = a:1 | endif
@@ -769,6 +794,38 @@ endfunction " }}}
 nnoremap <silent> <C-q>-    :call TBTmuxSplit({'d': '-'})<CR>
 nnoremap <silent> <C-q>\    :call TBTmuxSplit({'d': '<Bar>'})<CR>
 nnoremap <silent> <C-q><CR> :call TBTmuxSplit({'wnd': '1'})<CR>
+function! TBSendToPane(target)
+  execute '!$BASH_PATH/aliases fzf_exe -c pane --pane ' . a:target . ' -f ' . shellescape(expand('%:p')) . ' || true'
+endfunction
+command! -nargs=? TBSendToPane call TBSendToPane(<args>) " }}}
+" Send To Pane " {{{
+function! TBSendToPaneCompl(A, L, P) " {{{
+  if $IS_MAC == 'true' | let l:cmd = "pstree $p | command grep -q '[M]acOS/Vim'"
+  else                 | let l:cmd = "pstree -Ac $p | command grep -q -e '---vim'"
+  endif
+  let l:out = split(system(
+    \ ""
+    \ . "idd=$(tmux display-message -p '#S:#I.#P');"
+    \ . "while read id p; do"
+    \ . "  [[ $id != $idd ]] && " . l:cmd . " && echo $id;"
+    \ . "done < <(tmux list-panes -a -F '#S:#I.#P #{pane_pid}')"
+    \ ))
+  if a:A != "" | let out = filter(l:out, 'v:val =~ "^" . a:A') | endif
+  return l:out
+endfunction " }}}
+function! TBSendToPane(...) " {{{
+  let t = "." . v:count1
+  if a:0 >= 1 && a:1 != "" | let t = a:1 | endif
+  execute '!$BASH_PATH/aliases fzf_exe -c pane --pane ' . l:t . ' -f ' . shellescape(expand('%:p')) . ' || true'
+endfunction " }}}
+command! -nargs=? -complete=customlist,TBSendToPaneCompl TBSendToPane call TBSendToPane(<q-args>)
+nnoremap <silent> <F2> :<C-u>TBSendToPane<CR>
+nnoremap <F12><F2> :<C-u>TBSendToPane 
+" }}}
+" Oth {{{
+command -nargs=1 VG lvimgrep /<args>/j %:p:~:. <Bar> lopen
+nnoremap vg :VG 
+nnoremap v/ :VG <C-R><C-R>/<CR>
 " }}}
 " }}}
 " Abbreviations {{{
@@ -778,11 +835,12 @@ iabbr //- //--------------------------------------------------------------------
 " }}}
 " Mappings {{{
 " To small to catalogue {{{
-nnoremap <silent> <F12>cl :if &conceallevel == 2 <Bar> set conceallevel=0 <Bar> else <Bar> set conceallevel=2 <Bar> endif<CR>
-nnoremap <silent> <F12>gf :execute 'silent !tmux set-buffer "' . expand('%:p:~') . '"' <Bar> redraw!<CR>
-nnoremap          <F12>h  :Map<CR>
-inoremap <expr>   ;;      pumvisible() ? "<C-e>" : "<Esc>"
-inoremap          ;;;     ;;
+nnoremap <silent> <F12>cl       :if &conceallevel == 2 <Bar> set conceallevel=0 <Bar> else <Bar> set conceallevel=2 <Bar> endif<CR>
+nnoremap <silent> <F12>gf       :execute 'silent !tmux set-buffer "' . expand('%:p:~') . '"' <Bar> redraw!<CR>
+nnoremap          <F12>h        :Map<CR>
+inoremap <expr>   ;;            pumvisible() ? "<C-e>" : "<Esc>"
+inoremap          ;;;           ;;
+nnoremap          <Leader>t     :terminal<CR>
 " <c-i> is the same as <tab> and tab is changed to "%", thus <c-l> map the
 " behaviour of <c-i>, i.e. jump to newer cursor position in jump list
 noremap           <c-l>   <c-i>
@@ -994,6 +1052,12 @@ nmap <F12>cw :set wrap!<CR>
 nmap <silent> <F12>c8 :set list! <Bar> if &list <Bar> else <Bar> match <Bar> endif<CR>
 nmap <silent> <F12>c* :set list <Bar> match ErrorMsg '\s\+$'<CR>
 " }}}
+" oth {{{
+nmap <silent> <F12>c<space>
+      \ :if maparg("<lt>space>","n") =~ "^za" <Bar> exe 'nnoremap <lt>silent> <lt>space> <lt>c-d>' <Bar>
+      \ else <Bar> exe 'nnoremap <lt>silent> <lt>space> za' <Bar>
+      \ endif<CR>
+" }}}
 " }}}
 " build - <F12><F10>... {{{
 nmap <F12><F10>t :!ctags -R --sort=yes --c-kinds=cdefglmnpstuvx --c++-kinds=cdefglmnpstuvx --Java-kinds=cfilmp --fields=+iaStnml --extra=+q --exclude=.svn --exclude=CVS . <CR>
@@ -1060,12 +1124,14 @@ endif
 nmap <Leader>e    :call TBOpenFile()<CR>
 nmap <Leader>ve   <C-W><C-V><Bar><C-W><C-W><Bar>:call TBOpenFile()<CR>
 " }}}
+" }}}
 " Menu {{{
 " Menu - Substite {{{
 nmenu My.Substitute.-SpacesAtTheEnd :%s/\v\s+$//g<CR>                                   " removes spaces at the end of lines
+nmenu My.Substitute.-EmptyLines :g/^\s*$/ d<CR>                                         " removes empty lines
 nmenu My.Substitute.-HiglightedTexts :%s///g<CR>                                        " removes highlighted text
 nmenu My.Substitute.Tab2Spaces :%s/\t/  /<CR>                                           " replaces tabs with 2 spaces: [\t]->[  ]
-nmenu My.Substitute.First_Letter_Upper_in_vis :`<,`>s/\<\(\w\)\(\w*\)\>/\u\1\L\2/g<CR>  " makes First letter in a word uppercase, rest of them lowercase in a visual block
+nmenu My.Substitute.VIS-FirstLetterUpper :`<,`>s/\<\(\w\)\(\w*\)\>/\u\1\L\2/g<CR>       " makes First letter in a word uppercase, rest of them lowercase in a visual block
 nmenu My.Substitute.ChangeSlashes :%s#\\#/#g<CR>                                        " replaces \ with /: [\]->[/]
 " }}}
 nmenu My.NewTab.vimrc :tabedit $MYVIMRC<CR>
@@ -1078,16 +1144,20 @@ nmenu My.NewTab.FileDirectory :tabedit %:h<CR>
   nmap te  :tabedit 
   nmap tee :tabedit 
   nmap ted :tabedit %:h<CR>
-nmenu My.NewTab.GrepDirectory :tabedit $GREP_LAST_PATH/<CR>
-  nmap teg :tabedit $GREP_LAST_PATH<CR>
-nmenu My.NewTab.LogDirectory :tabedit $LOG_PATH/<CR>
-  nmap tel :tabedit $LOG_PATH/<CR>
-if $ISSUE_PATH != ""
-  nmenu My.NewTab.TicketDirectory :tabedit $ISSUE_PATH/<CR>
-  nmap tej :tabedit $ISSUE_PATH/<CR>
+if $GREP_LAST_PATH != "" " {{{
+  nmenu My.NewTab.GrepDirectory :tabedit $GREP_LAST_PATH/<CR>
+    nmap teg :tabedit $GREP_LAST_PATH<CR>
+endif " }}}
+if $LOG_PATH != "" " {{{
+  nmenu My.NewTab.LogDirectory :tabedit $LOG_PATH/<CR>
+    nmap tel :tabedit $LOG_PATH/<CR>
+endif " }}}
+if $TICKET_PATH != "" " {{{
+  nmenu My.NewTab.TicketDirectory :tabedit $TICKET_PATH/<CR>
+  nmap tej :tabedit $TICKET_PATH/<CR>
 else
   nmap tej <NOP>
-endif
+endif " }}}
 " }}}
 " Menu - Explorer {{{
 nmenu My.Explorer.NewTab :Texplore **/*
@@ -1099,8 +1169,7 @@ nmenu My.Explorer.CurrentDir-cd :cd %:p:h<CR>
 " Menu - Find {{{
 nmenu My.Find.Merge /^\%(\([<<Bar>>]\)\1\{6\} \)\<Bar>\%(=\{7\}\)<CR>
 nmap <F12>d /^\%(\([<<Bar>>]\)\1\{6\} \)\<Bar>^\%(=\{7\}\)$<CR>
-nmenu My.Find.Grep :grep "" %<Left><Left><Left>
-" }}}
+nmenu My.Find.Grep :lvimgrep // %<Left><Left><Left>
 " }}}
 " }}}
 " }}}
@@ -1334,6 +1403,8 @@ if has("python3")
 else
   let g:ConqueGdb_Disable = 1
 endif
+let g:ConqueGdb_Leader = '<Leader>'
+let g:ConqueGdb_Backtrace = g:ConqueGdb_Leader . 'T'
 " }}}
 " KickFix # {{{
 let g:kickfix_zebra=0
@@ -1358,12 +1429,12 @@ let g:matchup_matchparen_scrolloff = 1
 let g:loaded_cmake = 1
 " }}}
 " Smooth Scroll " {{{
-noremap <silent> <c-u>  :call smooth_scroll#up(&scroll, 14, 2)<CR>
-noremap <silent> <up>   :call smooth_scroll#up(&scroll, 14, 2)<CR>
-noremap <silent> <c-d>  :call smooth_scroll#down(&scroll, 14, 2)<CR>
-noremap <silent> <down> :call smooth_scroll#down(&scroll, 14, 2)<CR>
-noremap <silent> <c-b>  :call smooth_scroll#up(&scroll*2, 14, 4)<CR>
-noremap <silent> <c-f>  :call smooth_scroll#down(&scroll*2, 14, 4)<CR>
+noremap <silent> <c-u>  :<C-U>call smooth_scroll#up(&scroll, 14, 2)<CR>
+noremap <silent> <up>   :<C-U>call smooth_scroll#up(&scroll, 14, 2)<CR>
+noremap <silent> <c-d>  :<C-U>call smooth_scroll#down(&scroll, 14, 2)<CR>
+noremap <silent> <down> :<C-U>call smooth_scroll#down(&scroll, 14, 2)<CR>
+noremap <silent> <c-b>  :<C-U>call smooth_scroll#up(&scroll*2, 14, 4)<CR>
+noremap <silent> <c-f>  :<C-U>call smooth_scroll#down(&scroll*2, 14, 4)<CR>
 " }}}
 " }}}
 

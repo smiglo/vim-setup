@@ -16,12 +16,20 @@ set cpo&vim
 
 " Scroll the screen up
 function! smooth_scroll#up(dist, duration, speed)
-  call s:smooth_scroll('u', a:dist, a:duration, a:speed)
+  if v:count1 == 1
+    call s:smooth_scroll('u', a:dist, a:duration, a:speed)
+  else
+    exec "normal! " . a:dist * v:count1 . "k"
+  endif
 endfunction
 
 " Scroll the screen down
 function! smooth_scroll#down(dist, duration, speed)
-  call s:smooth_scroll('d', a:dist, a:duration, a:speed)
+  if v:count1 == 1
+    call s:smooth_scroll('d', a:dist, a:duration, a:speed)
+  else
+    exec "normal! " . a:dist * v:count1 . "j"
+  endif
 endfunction
 
 " ==============================================================================
