@@ -129,3 +129,6 @@
 [submodule "git-plugins/vim-smooth-scroll"]
 	path = git-plugins/vim-smooth-scroll
 	url = https://github.com/terryma/vim-smooth-scroll.git
+[submodule "git-plugins/typescript-vim"]
+	path = git-plugins/typescript-vim
+	url = https://github.com/leafgarland/typescript-vim.git

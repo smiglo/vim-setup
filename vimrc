@@ -319,9 +319,11 @@ if has("autocmd")
 
   " Save session on exit
   au VimLeave * if exists("g:TBSessionName") | call TBSessSave(TBSessGetName(), 1) | endif
+  au WinEnter * if exists("g:TBSessionName") | call TBSessUpdate() | endif
+  au SessionLoadPost * let g:TBSessionSaveTimeLast = localtime()
 
   " Working with split screen nicely - Resize Split When the window is resized"
-  au VimResized * :wincmd =
+  " au VimResized * :wincmd =
 
   " Omni completion for file types:
   autocmd FileType java setlocal omnifunc=javacomplete#Complete | completefunc=javacomplete#CompleteParamsInfo
@@ -385,6 +387,15 @@ function! TBSessGetFile(auto_save, local) " {{{
   return l:ret
 endfunction
 command! -nargs=? TBSessGetFile call TBSessGetFile(<f-args>) " }}}
+function! TBSessUpdate(...) " {{{
+  if ! exists("g:TBSessionName") | return | endif
+  let l:delta = 60 * 60
+  if exists("g:TBSessionSaveTimeDelta") | let l:delta = g:TBSessionSaveTimeDelta | endif
+  if !exists("g:TBSessionSaveTimeLast") | let g:TBSessionSaveTimeLast = 0 | endif
+  if g:TBSessionSaveTimeLast + l:delta < localtime()
+    call TBSessSave(TBSessGetName(), 1)
+  endif
+endfunction " }}}
 function! TBSessFiles(A, L, P) " {{{
   return system("cd $VIM_SESSIONS_PATH && ls *.vim 2>/dev/null | command grep -vF '.as' | sed -e 's/\.vim//g'")
 endfunction " }}}
@@ -400,6 +411,7 @@ function! TBSessSave(...) " {{{
   let l:auto_save = (a:0 >= 2) ? a:2 : 0
   let l:filename_vsd = TBSessGetFile(l:auto_save, 0)
   execute "mksession! " . l:filename_vsd
+  if l:auto_save == 1 | let g:TBSessionSaveTimeLast = localtime() | endif
   if l:sessionName != "Session"
     let l:filename_cwd = TBSessGetFile(l:auto_save, 1)
     call system("mv " . l:filename_vsd . " $VIM_SESSIONS_PATH/")
@@ -653,6 +665,7 @@ command! -nargs=? -complete=customlist,TBBldFileCompl Bld call TBBldFile(<f-args
 " }}}
 " Status Bar {{{
 function! TBSBGitStatus() " {{{
+  if has('gui_running') | return | endif
   let ret = FugitiveStatusline()
   if empty(l:ret) | return '' | endif
   if ! exists('g:GitShowStatus') || g:GitShowStatus == 0 | return l:ret | endif
@@ -664,6 +677,7 @@ function! TBSBGitStatus() " {{{
   return l:ret . ':' . l:st
 endfunction " }}}
 function! TBUpdateGitStatus() " {{{
+  if has('gui_running') | return | endif
   if ! exists('g:GitShowStatus') || g:GitShowStatus == 0 | return | endif
   let dir = FugitiveWorkTree()
   if empty(l:dir) | return | endif
@@ -686,6 +700,10 @@ function! TBSBExtraInfo() " {{{
     if &list  == 1 | let ret .= ' ¶' | endif
     if &wrap  == 1 | let ret .= ' ↵' | endif
     if &spell == 1 | let ret .= ' ✘' | endif
+    if     &filetype == 'default' | let ret .= ' ⅅ' |
+    elseif &filetype == 'log'     | let ret .= ' ℒ' |
+    elseif &filetype == 'log2'    | let ret .= ' ℒ2' |
+    endif
   else
     if     l:sName == 'W' | let ret .= ' S'  |
     elseif l:sName == 'S' | let ret .= ' SS' |
@@ -693,6 +711,10 @@ function! TBSBExtraInfo() " {{{
     if &list  == 1 | let ret .= ' P' | endif
     if &wrap  == 1 | let ret .= ' W' | endif
     if &spell == 1 | let ret .= ' S' | endif
+    if     &filetype == 'default' | let ret .= ' D' |
+    elseif &filetype == 'log'     | let ret .= ' L' |
+    elseif &filetype == 'log2'    | let ret .= ' L2' |
+    endif
   endif
   return l:ret[1:]
 endfunction " }}}
@@ -744,8 +766,33 @@ function! TBSBFilenameToggle() " {{{
 endfunction " }}}
 nnoremap <silent> <F12>cf :silent call TBSBFilenameToggle()<CR>
 " }}}
-" Skip Conceals " {{{
-function! TBSkipConceal(count, dir)
+" Conceals " {{{
+function! TBToggleGroupConceal(group) " {{{
+  redir => syntax_def
+  exe 'silent syn list' a:group
+  redir END
+  let lines = split(syntax_def, "\n")
+  exe 'syn clear' a:group
+  for line in lines
+    if line =~ a:group
+      let type = substitute(line, '\v' . a:group . '\s+xxx\s+(\k+)\s+(.*)', '\1', '')
+      if type == 'match'
+        let args = substitute(line, '\v' . a:group . '\s+xxx\s+(\k+)\s+(.*)', '\2', '')
+      else
+        let args = substitute(line, '\v' . a:group . '\s+xxx\s+(.*)', '\1', '')
+        if args =~ 'start' && args =~ 'end'
+          let type = 'region'
+        endif
+      endif
+      if args =~ 'conceal'
+        exe 'syn' type a:group substitute(args, ' conceal', '', '')
+      else
+        exe 'syn' type a:group args 'conceal cchar=♦'
+      endif
+    endif
+  endfor
+endfunction " }}}
+function! TBSkipConceal(count, dir) " {{{
   let cnt = a:count
   let c   = col('.')
   let l   = line('.')
@@ -761,7 +808,7 @@ function! TBSkipConceal(count, dir)
   if a:dir == 1 | exec "normal! ".(c-col('.'))."l"
   else          | exec "normal! ".(col('.')-c)."h"
   endif
-endfunction
+endfunction " }}}
 nnoremap <silent> l :<C-U>call TBSkipConceal(v:count1,  1)<CR>
 nnoremap <silent> h :<C-U>call TBSkipConceal(v:count1, -1)<CR>
 " }}}
@@ -823,7 +870,7 @@ nnoremap <silent> <F2> :<C-u>TBSendToPane<CR>
 nnoremap <F12><F2> :<C-u>TBSendToPane 
 " }}}
 " Oth {{{
-command -nargs=1 VG lvimgrep /<args>/j %:p:~:. <Bar> lopen
+command! -nargs=1 VG lvimgrep /<args>/j %:p:~:. <Bar> lopen
 nnoremap vg :VG 
 nnoremap v/ :VG <C-R><C-R>/<CR>
 " }}}
@@ -1177,7 +1224,7 @@ nmenu My.Find.Grep :lvimgrep // %<Left><Left><Left>
 if filereadable($HOME."/.vimrc.specific")
   source $HOME/.vimrc.specific
 endif
-for f in split(glob($BASH_PATH . '/profiles/*/inits/vim/*.vim'), '\n')
+for f in split(glob($PROFILES_PATH . '/*/inits/vim/*.vim'), '\n')
   exe 'source' f
 endfor
 if filereadable(".vimrc") && getcwd() != $HOME
