@@ -1305,6 +1305,8 @@ g:clever_f_mark_char	clever_f.txt	/*g:clever_f_mark_char*
 g:clever_f_mark_char_color	clever_f.txt	/*g:clever_f_mark_char_color*
 g:clever_f_mark_cursor	clever_f.txt	/*g:clever_f_mark_cursor*
 g:clever_f_mark_cursor_color	clever_f.txt	/*g:clever_f_mark_cursor_color*
+g:clever_f_mark_direct	clever_f.txt	/*g:clever_f_mark_direct*
+g:clever_f_mark_direct_color	clever_f.txt	/*g:clever_f_mark_direct_color*
 g:clever_f_not_overwrites_standard_mappings	clever_f.txt	/*g:clever_f_not_overwrites_standard_mappings*
 g:clever_f_repeat_last_char_inputs	clever_f.txt	/*g:clever_f_repeat_last_char_inputs*
 g:clever_f_show_prompt	clever_f.txt	/*g:clever_f_show_prompt*

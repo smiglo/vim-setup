@@ -1,6 +1,10 @@
 let s:save_cpo = &cpo
 set cpo&vim
 
+" constants
+let s:ON_NVIM = has('nvim')
+
+" configurations
 let g:clever_f_across_no_line          = get(g:, 'clever_f_across_no_line', 0)
 let g:clever_f_ignore_case             = get(g:, 'clever_f_ignore_case', 0)
 let g:clever_f_use_migemo              = get(g:, 'clever_f_use_migemo', 0)
@@ -13,10 +17,9 @@ let g:clever_f_hide_cursor_on_cmdline  = get(g:, 'clever_f_hide_cursor_on_cmdlin
 let g:clever_f_timeout_ms              = get(g:, 'clever_f_timeout_ms', 0)
 let g:clever_f_mark_char               = get(g:, 'clever_f_mark_char', 1)
 let g:clever_f_repeat_last_char_inputs = get(g:, 'clever_f_repeat_last_char_inputs', ["\<CR>"])
+let g:clever_f_mark_direct             = get(g:, 'clever_f_mark_direct', 0)
 
-" below variables must be set before loading this script
-let g:clever_f_mark_cursor_color       = get(g:, 'clever_f_mark_cursor_color', 'Cursor')
-let g:clever_f_mark_char_color         = get(g:, 'clever_f_mark_char_color', 'CleverFDefaultLabel')
+" below variable must be set before loading this script
 let g:clever_f_clean_labels_eagerly    = get(g:, 'clever_f_clean_labels_eagerly', 1)
 
 " highlight labels
@@ -26,11 +29,32 @@ augroup plugin-clever-f-highlight
 augroup END
 highlight default CleverFDefaultLabel ctermfg=red ctermbg=NONE cterm=bold,underline guifg=red guibg=NONE gui=bold,underline
 
+" Priority of highlight customization is:
+"   High:   When g:clever_f_*_color
+"   Middle: :highlight in a colorscheme
+"   Low:    Default highlights
+" When the variable is defined, it should be linked with :hi! since :hi does
+" not overwrite existing highlight group. (#50)
 if g:clever_f_mark_cursor
-    execute 'highlight link CleverFCursor' g:clever_f_mark_cursor_color
+    if exists('g:clever_f_mark_cursor_color')
+        execute 'highlight! link CleverFCursor' g:clever_f_mark_cursor_color
+    else
+        highlight link CleverFCursor Cursor
+    endif
 endif
 if g:clever_f_mark_char
-    execute 'highlight link CleverFChar' g:clever_f_mark_char_color
+    if exists('g:clever_f_mark_char_color')
+        execute 'highlight! link CleverFChar' g:clever_f_mark_char_color
+    else
+        highlight link CleverFChar CleverFDefaultLabel
+    endif
+endif
+if g:clever_f_mark_direct
+    if exists('g:clever_f_mark_direct_color')
+        execute 'highlight! link CleverFDirect' g:clever_f_mark_direct_color
+    else
+        highlight link CleverFDirect CleverFDefaultLabel
+    endif
 endif
 
 if g:clever_f_clean_labels_eagerly
@@ -93,6 +117,51 @@ function! s:is_timedout() abort
     return elapsed_ms > g:clever_f_timeout_ms
 endfunction
 
+" highlight characters to which the cursor can be moved directly
+function! s:mark_direct(forward, count) abort
+    let line = getline('.')
+    let [_, l, c, _] = getpos('.')
+
+    if (a:forward && c == len(line)) || (!a:forward && c == 1)
+        " there is no matching characters
+        return []
+    endif
+
+    if g:clever_f_ignore_case
+        let line = tolower(line)
+    endif
+
+    let char_count = {}
+    let matches = []
+    let indices = a:forward ? range(c, len(line) - 1, 1) : range(c - 2, 0, -1)
+    for i in indices
+        let ch = line[i]
+        " only matches to ASCII
+        if ch !~# '^[\x00-\x7F]$' | continue | endif
+        let ch_lower = tolower(ch)
+
+        let char_count[ch] = get(char_count, ch, 0) + 1
+        if g:clever_f_smart_case && ch =~# '\u'
+            " uppercase characters are doubly counted
+            let char_count[ch_lower] = get(char_count, ch_lower, 0) + 1
+        endif
+
+        if char_count[ch] == a:count ||
+            \ (g:clever_f_smart_case && char_count[ch_lower] == a:count)
+            " NOTE: should not use `matchaddpos(group, [...position])`,
+            " because the maximum number of position is 8
+            let m = matchaddpos('CleverFDirect', [[l, i + 1]])
+            call add(matches, m)
+        endif
+    endfor
+    return matches
+endfunction
+
+" introduce public function for test
+function! clever_f#_mark_direct(forward, count) abort
+    return s:mark_direct(a:forward, a:count)
+endfunction
+
 function! s:mark_char_in_current_line(map, char) abort
     let regex = '\%' . line('.') . 'l' . s:generate_pattern(a:map, a:char)
     call matchadd('CleverFChar', regex , 999)
@@ -116,8 +185,7 @@ endfunction
 
 function! clever_f#find_with(map) abort
     if a:map !~# '^[fFtT]$'
-        echoerr 'Invalid mapping: ' . a:map
-        return ''
+        throw "Error: Invalid mapping '" . a:map . "'"
     endif
 
     if &foldopen =~# '\<\%(all\|hor\)\>'
@@ -128,20 +196,25 @@ function! clever_f#find_with(map) abort
 
     let current_pos = getpos('.')[1 : 2]
 
-    let mode = mode(1)
+    let mode = s:mode()
     if current_pos != get(s:previous_pos, mode, [0, 0])
         let back = 0
         if g:clever_f_mark_cursor
             let cursor_marker = matchadd('CleverFCursor', '\%#', 999)
             redraw
         endif
-        if g:clever_f_hide_cursor_on_cmdline
+        " block-NONE does not work on Neovim
+        if g:clever_f_hide_cursor_on_cmdline && !s:ON_NVIM
             let guicursor_save = &guicursor
-            set guicursor=n:block-NONE
+            set guicursor=n-o:block-NONE
             let t_ve_save = &t_ve
             set t_ve=
         endif
         try
+            if g:clever_f_mark_direct
+                let direct_markers = s:mark_direct(a:map =~# '\l', v:count1)
+                redraw
+            endif
             if g:clever_f_show_prompt | echon 'clever-f: ' | endif
             let s:previous_map[mode] = a:map
             let s:first_move[mode] = 1
@@ -167,7 +240,8 @@ function! clever_f#find_with(map) abort
 
             if g:clever_f_mark_char
                 call s:remove_highlight()
-                if index(['n', 'v', 'V', "\<C-v>", 's', 'ce'], mode) != -1
+                if mode ==# 'n' || mode ==? 'v' || mode ==# "\<C-v>" ||
+                 \ mode ==# 'ce' || mode ==? 's' || mode ==# "\<C-s>"
                     augroup plugin-clever-f-finalizer
                         autocmd CursorMoved <buffer> call s:maybe_finalize()
                         autocmd InsertEnter <buffer> call s:finalize()
@@ -179,9 +253,20 @@ function! clever_f#find_with(map) abort
             if g:clever_f_show_prompt | redraw! | endif
         finally
             if g:clever_f_mark_cursor | call matchdelete(cursor_marker) | endif
-            if g:clever_f_hide_cursor_on_cmdline
+            if g:clever_f_mark_direct
+                for m in direct_markers
+                    call matchdelete(m)
+                endfor
+            endif
+            if g:clever_f_hide_cursor_on_cmdline && !s:ON_NVIM
+                " Set default value at first then restore (#49)
+                " For example, when the value is a:blinkon0, it does not affect cursor shape so cursor
+                " shape continues to disappear.
                 set guicursor&
-                let &guicursor = guicursor_save
+
+                if &guicursor !=# guicursor_save
+                    let &guicursor = guicursor_save
+                endif
                 let &t_ve = t_ve_save
             endif
         endtry
@@ -203,7 +288,7 @@ function! clever_f#find_with(map) abort
 endfunction
 
 function! clever_f#repeat(back) abort
-    let mode = mode(1)
+    let mode = s:mode()
     let pmap = get(s:previous_map, mode, '')
     let prev_char_num = get(s:previous_char_num, mode, 0)
 
@@ -220,7 +305,7 @@ function! clever_f#repeat(back) abort
         let pmap = s:swapcase(pmap)
     endif
 
-    if mode ==? 'v' || mode ==# "\<C-v>"
+    if mode[0] ==? 'v' || mode[0] ==# "\<C-v>"
         let cmd = s:move_cmd_for_visualmode(pmap, prev_char_num)
     else
         let inclusive = mode ==# 'no' && pmap =~# '\l'
@@ -255,7 +340,7 @@ function! clever_f#find(map, char_num) abort
     let moves_forward = s:moves_forward(before_pos, next_pos)
 
     " update highlight when cursor moves across lines
-    let mode = mode(1)
+    let mode = s:mode()
     if g:clever_f_mark_char
         if next_pos[0] != before_pos[0]
             \ || (a:map ==? 't' && !s:first_move[mode] && clever_f#compat#xor(s:moved_forward, moves_forward))
@@ -272,6 +357,7 @@ endfunction
 function! s:finalize() abort
     autocmd! plugin-clever-f-finalizer
     call s:remove_highlight()
+    let s:previous_pos = {}
     let s:moved_forward = 0
 endfunction
 
@@ -288,7 +374,7 @@ function! s:move_cmd_for_visualmode(map, char_num) abort
         return ''
     endif
 
-    let m = mode(1)
+    let m = s:mode()
     call setpos("''", [0] + next_pos + [0])
     let s:previous_pos[m] = next_pos
     let s:first_move[m] = 0
@@ -346,7 +432,7 @@ function! s:generate_pattern(map, char_num) abort
         let regex = '\\'
     endif
 
-    let is_exclusive_visual = &selection ==# 'exclusive' && mode(1) ==? 'v'
+    let is_exclusive_visual = &selection ==# 'exclusive' && s:mode()[0] ==? 'v'
     if a:map ==# 't' && !is_exclusive_visual
         let regex = '\_.\ze\%(' . regex . '\)'
     elseif is_exclusive_visual && a:map ==# 'f'
@@ -363,7 +449,7 @@ function! s:generate_pattern(map, char_num) abort
 endfunction
 
 function! s:next_pos(map, char_num, count) abort
-    let mode = mode(1)
+    let mode = s:mode()
     let search_flag = a:map =~# '\l' ? 'W' : 'bW'
     let cnt = a:count
     let pattern = s:generate_pattern(a:map, a:char_num)
@@ -387,6 +473,15 @@ endfunction
 
 function! s:swapcase(char) abort
     return a:char =~# '\u' ? tolower(a:char) : toupper(a:char)
+endfunction
+
+" Drop forced visual mode character ('nov' -> 'no')
+function! s:mode() abort
+    let mode = mode(1)
+    if mode =~# '^no'
+        let mode = mode[0 : 1]
+    endif
+    return mode
 endfunction
 
 let &cpo = s:save_cpo

@@ -103,7 +103,7 @@ syn match  mkdCode         /^\s*\n\(\(\s\{8,}[^ ]\|\t\t\+[^\t]\).*\n\)\+/
 syn match  mkdCode         /\%^\(\(\s\{4,}[^ ]\|\t\+[^\t]\).*\n\)\+/
 syn match  mkdCode         /^\s*\n\(\(\s\{4,}[^ ]\|\t\+[^\t]\).*\n\)\+/ contained
 syn match  mkdListItem     /^\s*\%([-*+]\|\d\+\.\)\s\+/ contained
-syn region mkdListItemLine start="^\s*\%([-*+]\|\d\+\.\)\s\+" end="$" oneline contains=@mkdNonListItem,mkdListItem,@Spell
+syn region mkdListItemLine start="^\s*\%([-*+]\|\d\+\.\)\s\+" end="$" oneline contains=@mkdNonListItem,mkdListItem,@Spell,logIssueLine
 syn region mkdNonListItemBlock start="\(\%^\(\s*\([-*+]\|\d\+\.\)\s\+\)\@!\|\n\(\_^\_$\|\s\{4,}[^ ]\|\t+[^\t]\)\@!\)" end="^\(\s*\([-*+]\|\d\+\.\)\s\+\)\@=" contains=@mkdNonListItem,@Spell
 syn match  mkdRule         /^\s*\*\s\{0,1}\*\s\{0,1}\*$/
 syn match  mkdRule         /^\s*-\s\{0,1}-\s\{0,1}-$/
@@ -145,6 +145,17 @@ if get(g:, 'vim_markdown_math', 0)
 endif
 
 syn cluster mkdNonListItem contains=@htmlTop,htmlItalic,htmlBold,htmlBoldItalic,mkdFootnotes,mkdInlineURL,mkdLink,mkdLinkDef,mkdLineBreak,mkdBlockquote,mkdCode,mkdRule,htmlH1,htmlH2,htmlH3,htmlH4,htmlH5,htmlH6,mkdMath
+
+syn match logIssueLine     /\(\[[A-Z][A-Z0-9]\{1,\}-\d\{3,\}\]\|\<[A-Z][A-Z0-9]\{2,\}-\d\{3,\}\>\)\((https\?:\/\/[^)]*)\)\?\(: .*$\)\?/ contains=logIssue,logIssueLink,logIssueDescrF
+syn match logIssue         /\(\[[A-Z][A-Z0-9]\{1,\}-\d\{3,\}\]\|\<[A-Z][A-Z0-9]\{2,\}-\d\{3,\}\>\)/           contained
+syn match logIssueLink     /(https\?:\/\/[^)]*)/                                                              contained
+syn match logIssueDescrF   /: .*/                                                                             contained contains=logIssueDescr
+syn match logIssueDescr    /[^:][^ ].*/                                                                       contained
+
+hi! def link logTime        Type
+hi! def link logIssue       Question
+hi! def link logIssueLink   Comment
+hi! def link logIssueDescr  WarningMsg
 
 "highlighting for Markdown groups
 HtmlHiLink mkdString        String

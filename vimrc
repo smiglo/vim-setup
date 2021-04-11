@@ -89,9 +89,13 @@ endif
 " set colorcolumn=110 "shows color column at 110
 if has("gui_macvim")
   set guifont=Fira\ Mono:h17,Inconsolata:h17
+  set printfont=Fira\ Mono:h17,Inconsolata:h17
 else
   set guifont=Fira\ Mono\ 14,Inconsolata\ 16
+  set printfont=Fira\ Mono\ 14,Inconsolata\ 16
 endif
+set printencoding=latin2
+set printheader=%=%t/%N
 set autoread " Auto reread file if changed outside
 set hidden   " Does not close buffers
 " if $STY != ""
@@ -323,7 +327,7 @@ if has("autocmd")
   au SessionLoadPost * let g:TBSessionSaveTimeLast = localtime()
 
   " Working with split screen nicely - Resize Split When the window is resized"
-  " au VimResized * :wincmd =
+  au VimResized * :wincmd =
 
   " Omni completion for file types:
   autocmd FileType java setlocal omnifunc=javacomplete#Complete | completefunc=javacomplete#CompleteParamsInfo
@@ -367,6 +371,8 @@ function! TBSessGetName(...) " {{{
   if a:0 >= 1 && (a:1 == 'SB' || a:1 == 'SB-e')
     if g:TBSessionName == 'Session'
       if a:1 == 'SB' | return "" | else | return 'S' | endif
+    elseif g:TBSessionName ==? 'tmp'
+      if a:1 == 'SB' | return "" | else | return 'T' | endif
     endif
     if ! exists("g:tbSessionWName")  | let g:tbSessionWName = system("tmux display-message -p -t $TMUX_PANE -F '#W'") | endif
     if g:tbSessionWName =~? "^" . g:TBSessionName
@@ -567,8 +573,8 @@ function! TBACMRun()
 endfunction
 " }}}
 " For stdin # {{{
-command! FastBuffer setlocal bufhidden=hide noswapfile cursorline | noremap q<CR> :quit!<CR>
-command! ScratchBuffer setlocal buftype=nofile | FastBuffer
+command! FastBuffer setlocal buftype= bufhidden=hide noswapfile cursorline | noremap <buffer> q<CR> :quit!<CR> | noremap qq<CR> :quitall!<CR> | execute "noremap <buffer> <special> <silent> \<F12\>cF :execute 'ScratchBuffer'<CR>"
+command! ScratchBuffer execute 'FastBuffer' | setlocal buftype=nofile | execute "noremap <buffer> <special> <silent> \<F12\>cF :execute 'FastBuffer'<CR>"
 " }}}
 " Building {{{
 function! TBBldGetMakefile() " {{{
@@ -696,6 +702,7 @@ function! TBSBExtraInfo() " {{{
   if $TERMINAL_HAS_EXTRA_CHARS != 'false'
     if     l:sName == 'W' | let ret .= ' 𝑆'  |
     elseif l:sName == 'S' | let ret .= ' 𝑆𝑆' |
+    elseif l:sName == 'T' | let ret .= ' 𝑇'  |
     endif
     if &list  == 1 | let ret .= ' ¶' | endif
     if &wrap  == 1 | let ret .= ' ↵' | endif
@@ -707,6 +714,7 @@ function! TBSBExtraInfo() " {{{
   else
     if     l:sName == 'W' | let ret .= ' S'  |
     elseif l:sName == 'S' | let ret .= ' SS' |
+    elseif l:sName == 'T' | let ret .= ' T'  |
     endif
     if &list  == 1 | let ret .= ' P' | endif
     if &wrap  == 1 | let ret .= ' W' | endif
@@ -722,12 +730,13 @@ function! TBSBFilename(mode) " {{{
   let fName = substitute(expand('%'),'^\./\(.*\)', '\1', '')
   let ret = ''
   let predefined = {
-        \ 'nofile' : '[Scratch]',
-        \ 'qf'     : '[QuickFix]',
-        \ 'help'   : '[Help]',
+        \ 'nofile'    : '[Scratch]',
+        \ 'qf'        : '[QuickFix]',
+        \ 'help'      : '[Help]',
+        \ 'emptyfile' : '[ScratchFile]',
         \ }
   if has_key(l:predefined, &buftype) | let ret = l:predefined[&buftype]
-  elseif l:fName == '' | let ret = l:predefined['nofile']
+  elseif l:fName == '' | let ret = l:predefined['emptyfile']
   endif
   if a:mode == 0
     if l:ret != '' | let ret = ' ' . l:ret . ' ' | endif
@@ -863,14 +872,95 @@ endfunction " }}}
 function! TBSendToPane(...) " {{{
   let t = "." . v:count1
   if a:0 >= 1 && a:1 != "" | let t = a:1 | endif
-  execute '!$BASH_PATH/aliases fzf_exe -c pane --pane ' . l:t . ' -f ' . shellescape(expand('%:p')) . ' || true'
+  if l:t !~ ".*\..*" | let t .= ".1" | endif
+  execute '!$BASH_PATH/aliases fzf_exe -c pane --pane ' . l:t . ' -f ' . shellescape(expand('%:p'))
 endfunction " }}}
 command! -nargs=? -complete=customlist,TBSendToPaneCompl TBSendToPane call TBSendToPane(<q-args>)
 nnoremap <silent> <F2> :<C-u>TBSendToPane<CR>
 nnoremap <F12><F2> :<C-u>TBSendToPane 
 " }}}
+" Log Inserter " {{{
+function! TBInsertLog(...) " {{{
+  let id = $ISSUE
+  if !empty(l:id) | let id = ' [' . l:id . ']' | endif
+  if len(a:000) > 1 || get(a:000, 0) == '-' " {{{
+    if ! exists("g:TBLogMap") | let g:TBLogMap = {} | endif
+    let id = 0
+    if get(a:000, 0) == '-' | let id = 1 | endif
+    let key = a:000[l:id]
+    if l:key !~ '.*\.\*.*' | let key = ".*/" . l:key . "/.*" | endif
+    call extend(g:TBLogMap, { l:key: {
+          \ 'cmd'  : get(a:000, l:id + 1, ''),
+          \ 'style': get(a:000, l:id + 2, '') }})
+    return 0 " }}}
+  elseif get(a:000, 0) == 'DBG' " {{{
+    let line = "\<ESC>mmA // TB] Dbg" . l:id . "\<ESC>`mmm"
+    if mode() == 'i' | let line .= 'i' | endif
+    return l:line
+  endif " }}}
+  let type  = get(a:000, 0, 'II')
+  let cmd   = $VIM_LOG_DEFAULT_COMMAND
+  let style = $VIM_LOG_DEFAULT_STYLE
+  let file  = expand("%")
+  let map   = eval('{' . $VIM_LOG_MAP . '}')
+  let found = 0
+  let duplicate = 0
+  if empty(l:cmd)   | let cmd   = 'printf(' | endif
+  if empty(l:style) | let style = 'c'       | endif
+  if exists("g:TBLogMap") | call extend(l:map, g:TBLogMap) | endif
+  if l:type == 'DUPL'
+    let type = 'II'
+    let duplicate = 1
+  endif
+  for [k, v] in items(l:map)
+    if l:file =~ l:k
+      let found = 1
+      if has_key(l:v, 'cmd')   && !empty(l:v['cmd'])   | let cmd   = l:v['cmd']   | endif
+      if has_key(l:v, 'style') && !empty(l:v['style']) | let style = l:v['style'] | endif
+      break
+    endif
+  endfor
+  if ! l:found && exists("g:TBLogFallback")
+    let style = 'fallback'
+    let cmd   = g:TBLogFallback
+  endif
+  let cmd .= '"TB]' . l:id . ' ' . l:type . ' '
+  let len = len(l:cmd)
+  if (l:type == 'EE' || l:type == 'TT') && (l:style == 'c' || l:style == 'cpp')
+    if     l:style == 'c'   | let cmd .= ' [%s(): %s:%d]", __func__, __FILE__, __LINE__);' |
+    elseif l:style == 'cpp' | let cmd .= ' [" << __func__ << "(): " << __FILE__ << ":" << __LINE__ << "]");' |
+    endif
+  else
+    let cmd .= '");'
+  endif
+  let cmd .= ' // TB] Dbg' . l:id
+  let @9 = l:cmd
+  " Insert space and delete it (keep indent), Paste Reg#9, Press esc, go to the beginning, move right nth. and change mode to insert
+  let cmd = " \<BS>" . "\"9p" . "\<ESC>^" . l:len . 'li'
+  if mode() != 'i'
+    if l:type == 'BB' | let cmd = 'O' . l:cmd |
+    else              | let cmd = 'o' . l:cmd |
+    endif
+  endif
+  if l:duplicate
+    " Go to the beginnning of current line, find '"", move left, yank to Reg#Z to ';'
+    let cmd = "|" . "f\"l" . "\"zyf;" . l:cmd
+    " Exit from insert mode, paste Reg#Z, delete till ';'
+    let cmd .= "\<ESC>" . "\"zp" . "dt;"
+  endif
+  return l:cmd
+endfunction " }}}
+nnoremap <expr> <Leader>\tb TBInsertLog("BB")
+nnoremap <expr> <Leader>\ta TBInsertLog("AA")
+nnoremap <expr> <Leader>\ti TBInsertLog("II")
+nnoremap <expr> <Leader>\te TBInsertLog("EE")
+nnoremap <expr> <Leader>\tt TBInsertLog("TT")
+nnoremap <expr> <Leader>\td TBInsertLog("DBG")
+nnoremap <expr> <Leader>\tD TBInsertLog("DUPL")
+" }}}
 " Oth {{{
 command! -nargs=1 VG lvimgrep /<args>/j %:p:~:. <Bar> lopen
+command! FPdf execute("hardcopy >$TMP_MEM_PATH/%:t:r.ps | !ps2pdf $TMP_MEM_PATH/%:t:r.ps %:p:r.pdf")
 nnoremap vg :VG 
 nnoremap v/ :VG <C-R><C-R>/<CR>
 " }}}
@@ -887,7 +977,7 @@ nnoremap <silent> <F12>gf       :execute 'silent !tmux set-buffer "' . expand('%
 nnoremap          <F12>h        :Map<CR>
 inoremap <expr>   ;;            pumvisible() ? "<C-e>" : "<Esc>"
 inoremap          ;;;           ;;
-nnoremap          <Leader>t     :terminal<CR>
+nnoremap          <Leader>ttt   :terminal<CR>
 " <c-i> is the same as <tab> and tab is changed to "%", thus <c-l> map the
 " behaviour of <c-i>, i.e. jump to newer cursor position in jump list
 noremap           <c-l>   <c-i>
@@ -917,8 +1007,27 @@ nmap TODO O/*<CR>TODO: <CR>*/k$
 nnoremap <Leader>dd o//TB] Dbg<Esc>4bi
 nnoremap <Leader>da A //TB] Dbg<Esc>
 " }}}
-" adds space before and after cursor {{{
+" adds space&co before and after cursor/selection {{{
 nnoremap <Leader><space> i a 
+vnoremap <Leader><space> `<i `>la hv`<l
+
+nnoremap <Leader><space>( i(a)
+nnoremap <Leader><space>[ i[a]
+nnoremap <Leader><space>{ i{a}
+nnoremap <Leader><space>< i<a>
+nnoremap <Leader><space>" i"a"
+nnoremap <Leader><space>' i'a'
+nnoremap <Leader><space>` i`a`
+nnoremap <Leader><space>p Plp
+
+vnoremap <Leader><space>( `<i(`>la)hv`<l
+vnoremap <Leader><space>[ `<i[`>la]hv`<l
+vnoremap <Leader><space>{ `<i{`>la}hv`<l
+vnoremap <Leader><space>< `<i<`>la>hv`<l
+vnoremap <Leader><space>" `<i"`>la"hv`<l
+vnoremap <Leader><space>' `<i'`>la'hv`<l
+vnoremap <Leader><space>` `<i``>la`hv`<l
+vnoremap <Leader><space>p `>p`.hm>`<P`]l
 " }}}
 " Comments {{{
 " surrounds selected block with /*...*/
@@ -945,11 +1054,15 @@ nnoremap ; :
 nnoremap <Space> za
 vnoremap <Space> za
 " }}}
-" Copy line to system clipboard {{{
+" Copy & Pase line to system clipboard {{{
 nnoremap <Leader>y g^"+y$
 nnoremap <Leader>Y "+y$
 vnoremap <Leader>y "+y
 vnoremap <Leader>Y $"+y
+nnoremap <Leader>p "+p
+nnoremap <Leader>P "+P
+vnoremap <Leader>p "+p
+vnoremap <Leader>P "+P
 " }}}
 " Fix for linewrapping: jump to the next/prev editor line (not physical) {{{
 nnoremap <silent> j gj
@@ -1037,10 +1150,14 @@ nnoremap <Leader>ack :AckFromSearch<cr>
 " tab next and tab prev {{{
 nnoremap tn gt
 nnoremap tp gT
-nnoremap tH :-tabmove<CR>
-nnoremap tL :+tabmove<CR>
+nnoremap <silent> tH :-tabmove<CR>
+nnoremap <silent> tL :+tabmove<CR>
 nnoremap H gT
 nnoremap L gt
+nnoremap <Left> gT
+nnoremap <Right> gt
+nnoremap <silent> <S-Left> :tabmove -1<CR>
+nnoremap <silent> <S-Right> :tabmove +1<CR>
 " C-Left/C-Right{{{
 if v:progname ==# "vim"
   if has('win16') || has('win32') || has('win64') || $TERM ==? "cygwin"
@@ -1064,11 +1181,9 @@ nmap <silent> tl :exe "tabn " . g:LastTab <CR>
 " Close all splits in the current window {{{
 nnoremap <C-W>q <C-w>o <bar> ZQ
 " }}}
-" toggle search highligns {{{
-nnoremap <silent> <F12><F11> :set invhlsearch<CR>
-" }}}
 " clear last search pattern {{{
 nnoremap <silent> <F12><F12> :let @/ = ""<CR>
+nnoremap <silent> //         :let @/ = ""<CR>
 " }}}
 " Open a Quickfix window for the last search. {{{
 nnoremap <silent> <leader>q/ :execute 'vimgrep /'.@/.'/g %'<CR>:copen<CR>
@@ -1175,6 +1290,7 @@ nmap <Leader>ve   <C-W><C-V><Bar><C-W><C-W><Bar>:call TBOpenFile()<CR>
 " Menu {{{
 " Menu - Substite {{{
 nmenu My.Substitute.-SpacesAtTheEnd :%s/\v\s+$//g<CR>                                   " removes spaces at the end of lines
+nmenu My.Substitute.-FileLoc :%s/^[^ :]\+:\d\+://<CR>                                   " removes file location (e.g. grep input)
 nmenu My.Substitute.-EmptyLines :g/^\s*$/ d<CR>                                         " removes empty lines
 nmenu My.Substitute.-HiglightedTexts :%s///g<CR>                                        " removes highlighted text
 nmenu My.Substitute.Tab2Spaces :%s/\t/  /<CR>                                           " replaces tabs with 2 spaces: [\t]->[  ]
@@ -1201,8 +1317,10 @@ if $LOG_PATH != "" " {{{
 endif " }}}
 if $TICKET_PATH != "" " {{{
   nmenu My.NewTab.TicketDirectory :tabedit $TICKET_PATH/<CR>
-  nmap tej :tabedit $TICKET_PATH/<CR>
+  nmap teJ :tabedit $TICKET_PATH/<CR>
+  nmap tej :execute("tabedit " . system("$TICKET_TOOL_PATH/j-cmd.sh cd -v"))<CR>
 else
+  nmap teJ <NOP>
   nmap tej <NOP>
 endif " }}}
 " }}}

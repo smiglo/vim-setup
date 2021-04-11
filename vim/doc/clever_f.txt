@@ -23,7 +23,7 @@ Instead of |;|, |f| is available to repeat after you type |f|{char} or |F|{char}
 after |f|{char} and |F|{char} is also available to undo a jump. |t|{char} and
 |T|{char} are ditto. This extension makes a repeat easier and makes you forget
 the existence of |;|. You can use |;| for other key mapping.
-In addition, many handy features (target highlignting, smartcase matching, and
+In addition, many handy features (target highlighting, smartcase matching, and
 so on) are provided and you can customize behavior of the mappings.
 Please check |clever-f.vim-variables|.
 
@@ -207,6 +207,27 @@ g:clever_f_repeat_last_char_inputs          *g:clever_f_repeat_last_char_inputs*
 >
     let g:clever_f_repeat_last_char_inputs = ["\<CR>", "\<Tab>"]
 <
+g:clever_f_mark_direct                                  *g:clever_f_mark_direct*
+
+    If the value is equivalent to 1, characters to which the cursor can be
+    moved directly are highlighted until you input a character.  Highlighting
+    is enabled in normal and visual mode.
+    The default value is 0.
+
+g:clever_f_mark_direct_color                      *g:clever_f_mark_direct_color*
+
+    If |g:clever_f_mark_direct| is enabled, |clever-f| highlights characters
+    using the highlight group which |g:clever_f_mark_direct_color| specifies.
+    If you want to change the highlight group |clever-f| uses, set
+    your favorite highlight group to this variable.
+    The default value is "CleverFDefaultLabel", which makes characters red and
+    bold.  If you want to make an original label highlight, define your own
+    highlight group.(See |:highlight|)
+
+    Note:
+    |g:clever_f_mark_direct_color| must be set before |clever-f| is loaded.
+    (e.g. in your |vimrc|)
+
 
 ==============================================================================
 SPECIAL THANKS                                     *clever-f.vim-special-thanks*

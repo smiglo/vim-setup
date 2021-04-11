@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # vim: fdl=0
 
 # Debugging # {{{
@@ -52,7 +52,7 @@ m*|g*|r*|_m*|_g*|_r*) use_gui=true;;
 esac # }}}
 # Completion # {{{
 if [[ "$1" == "@@" ]]; then
-  ret_val="@@-f --scratch --fast"
+  ret_val="@@-f --scratch --fast -cl"
   if [[ $name == *-session || $3 == '-S' ]]; then
     ret_val=
     [[ "$(echo Session*.vim)" != 'Session*.vim' ]] && ret_val=" $(echo Session*.vim | sed -e 's/\(Session-\|\.vim\)//g') "
@@ -91,10 +91,11 @@ if $use_gui; then # {{{
 fi # }}}
 # Options for each of vim modes # {{{
 case "$name" in
-_*|*vimdiff) parsing_parameters=false;;&
-*vimdiff)    opts+=" -dO";;
-*view)       opts+=" -R";;
-*ex)         opts+=" -e";;
+_*|*vimdiff*) parsing_parameters=false;;&
+vimdiffgit)   opts+=" -c ':map qq :quitall!<CR>'";;&
+*vimdiff*)    opts+=" -dO";;
+*view)        opts+=" -R";;
+*ex)          opts+=" -e";;
 *-session)   sessionFile="$1" # {{{
              if [[ -z "$sessionFile" ]]; then # {{{
                # Session from window name # {{{
@@ -128,9 +129,15 @@ _*|*vimdiff) parsing_parameters=false;;&
                shift
                [[ ! "$sessionFile" =~ ".vim" ]] && sessionFile="$sessionFile.vim"
                [[ ! "$sessionFile" =~ "Session-" && "$sessionFile" != "Session."* ]] && sessionFile="Session-$sessionFile"
+               [[ ! -e "$sessionFile" && "$sessionFile" == *".as.vim" ]] && sessionFile="${sessionFile%.as.vim}.vim"
                [[ ! -e "$sessionFile" ]] && echo "Session file [$sessionFile] does not exist" >/dev/stderr
              fi # }}}
              [[ -z "$sessionFile" || ! -e "$sessionFile" ]] && exit
+             if [[ "$sessionFile" == *".as.vim" && -e "${sessionFile/.as}" ]] && ! command grep -q "^edit" "$sessionFile"; then
+               echo "Broken autosave for "${sessionFile/.as}", restoring from original"
+               cp "$(readlink -f "$sessionFile")" "$(readlink -f "$sessionFile").bck"
+               cp "${sessionFile/.as}" "$sessionFile"
+             fi
              opts+=" -S \"$sessionFile\""
              ;; # }}}
 esac # }}}
@@ -138,15 +145,20 @@ esac # }}}
 # Parse arguments # {{{
 files=
 if $parsing_parameters; then
-  [[ -z $1 && ! -t 0 ]] && set -- -
+  if [[ ! -t 0 ]]; then
+    if [[ " $@ " != *\ -\ * ]]; then
+      [[ $1 == '-' ]] && shift
+      set -- $(echo "$@") -
+    fi
+  fi
   if [[ ! -z "$1" ]]; then
     while [[ ! -z "$1" ]]; do # {{{
       case $1 in # {{{
       --abort-if-no-session)
              [[ ! -e "Session.vim" ]] && exit;;
-      -S)    opts+=" $1 $2"; shift;;
-      --fast)
-             opts+=" -c FastBuffer";;
+      -S)     opts+=" $1 $2"; shift;;
+      -cl)    opts+=" -c 'set cursorline'";;
+      --fast) opts+=" -c FastBuffer";;
       --scratch | -)
              opts+=" -c ScratchBuffer"
              [[ $1 == '-' ]] && opts+=" $1";;
