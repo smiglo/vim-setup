@@ -10,6 +10,8 @@ endif
 set nolist
 setlocal cursorline
 
+runtime!  syntax/syntax-common.vim
+
 let s:cpo_save = &cpo
 set cpo&vim
 

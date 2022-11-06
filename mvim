@@ -1,15 +1,7 @@
 #!/usr/bin/env bash
 # vim: fdl=0
 
-# Debugging # {{{
-debug=false
-[[ $1 == "--debug" ]] && debug=true && shift
-# }}}
 # Functions # {{{
-dbg() { # {{{
-  $debug && echo "$1" >/dev/stderr
-  return 0
-} # }}}
 checkRemoteVim() { # {{{
   [[ -z $1 ]] && return 1
   local list=$(exec $binary --serverlist)
@@ -22,9 +14,10 @@ checkRemoteVim() { # {{{
 } # }}}
 # }}}
 # Check vim location # {{{
+! declare -f echorm >/dev/null 2>&1 && [[ -e $ECHOR_PATH/echor ]] && source $ECHOR_PATH/echor
 binary=${VIM_PATH:-"/usr/bin/vim"}
 if [[ ! -x "$binary" ]]; then
-  dbg "Binary vim ($binary) does not exist. Searching..."
+  echorm 2 "Binary vim ($binary) does not exist. Searching..."
   if $IS_MAC; then
     list="~/Applications ~/Applications/vim /Applications /Applications/vim /Applications/Utilities /Applications/Utilities/vim"
     for i in $list; do
@@ -35,8 +28,8 @@ if [[ ! -x "$binary" ]]; then
       [[ -x $i ]] && binary=$i && break
     done
   fi
-  [[ ! -x "$binary" ]] && dbg "[FAILED]" && exit 1
-  dbg "[DONE ($binary)]"
+  [[ ! -x "$binary" ]] && echorm 2 "[FAILED]" && exit 1
+  echorm 2 "[DONE ($binary)]"
 fi # }}}
 # Next, peek at the name used to invoke this script, and set options accordingly # {{{
 name="$(basename "$0")"
@@ -52,14 +45,23 @@ m*|g*|r*|_m*|_g*|_r*) use_gui=true;;
 esac # }}}
 # Completion # {{{
 if [[ "$1" == "@@" ]]; then
-  ret_val="@@-f --scratch --fast -cl"
-  if [[ $name == *-session || $3 == '-S' ]]; then
-    ret_val=
-    [[ "$(echo Session*.vim)" != 'Session*.vim' ]] && ret_val=" $(echo Session*.vim | sed -e 's/\(Session-\|\.vim\)//g') "
-    [[ -e 'Session.vim' && -L 'Session.vim' && "$ret_val" == *\ Session\ * ]] && ret_val="${ret_val/Session}"
-  elif $use_gui; then
-    [[ $2 == 1 ]] && ret_val="$($binary --serverlist)"
-  fi
+  ret_val=
+  case $3 in
+  --type) # {{{
+    $IS_MAC && source $ALIASES --force
+    ret_val="$(declare -F | awk '{print $3}' | command grep "^[^_]" | sort -u)";; # }}}
+  --which) # {{{
+    ret_val="$(echo -n "$PATH:." | xargs -d: -I{} -r -- find -L {} -maxdepth 1 -mindepth 1 -type f -executable -printf '%P\n' 2>/dev/null | sort -u)";; # }}}
+  *) # {{{
+    ret_val="@@-f --scratch --fast --Fast -cl --type --which --no-session --abort-if-no-session"
+    if [[ $name == *-session || $3 == '-S' ]]; then
+      ret_val=
+      [[ "$(echo Session*.vim)" != 'Session*.vim' ]] && ret_val=" $(echo Session*.vim | sed -e 's/\(Session-\|\.vim\)//g') "
+      [[ -e 'Session.vim' && -L 'Session.vim' && "$ret_val" == *\ Session\ * ]] && ret_val="${ret_val/Session}"
+    elif $use_gui; then
+      [[ $2 == 1 ]] && ret_val="$($binary --serverlist)"
+    fi;; # }}}
+  esac
   echo "$ret_val"
   exit 0
 fi # }}}
@@ -86,12 +88,12 @@ if $use_gui; then # {{{
   case "$name" in
   m*|g*|r*|_m*|_g*|_r*)
     open_file_method="--remote-tab-silent"
-    opts="-g $opts --servername $server_name";;
+    opts="-g $opts -c FastClipboard --servername $server_name";;
   esac # }}}
 fi # }}}
 # Options for each of vim modes # {{{
 case "$name" in
-_*|*vimdiff*) parsing_parameters=false;;&
+_*|*vimdiff*) open_file_method='';;&
 vimdiffgit)   opts+=" -c ':map qq :quitall!<CR>'";;&
 *vimdiff*)    opts+=" -dO";;
 *view)        opts+=" -R";;
@@ -141,50 +143,113 @@ vimdiffgit)   opts+=" -c ':map qq :quitall!<CR>'";;&
              opts+=" -S \"$sessionFile\""
              ;; # }}}
 esac # }}}
-[[ "$name" == 'vi' ]] && check_session_file=false
 # Parse arguments # {{{
+[[ "$name" == 'vi' ]] && check_session_file=false
 files=
 if $parsing_parameters; then
+  [[ ! -z $VIM_ENV ]] && set -- $VIM_ENV "$@"
+  stdin=false
   if [[ ! -t 0 ]]; then
+    stdin=true
     if [[ " $@ " != *\ -\ * ]]; then
-      [[ $1 == '-' ]] && shift
-      set -- $(echo "$@") -
+      opts+=" -"
     fi
+    [[ $1 == '-' ]] && shift
   fi
   if [[ ! -z "$1" ]]; then
+    fileLast= addEval=false
+    declare -a evalPred=
     while [[ ! -z "$1" ]]; do # {{{
       case $1 in # {{{
-      --abort-if-no-session)
-             [[ ! -e "Session.vim" ]] && exit;;
+      --no-session) # {{{
+        check_session_file=false;; # }}}
+      --abort-if-no-session) # {{{
+        [[ ! -e "Session.vim" ]] && exit;; # }}}
+      -f1)    files+=" $2/$fileLast"; shift;;
       -S)     opts+=" $1 $2"; shift;;
       -cl)    opts+=" -c 'set cursorline'";;
-      --fast) opts+=" -c FastBuffer";;
-      --scratch | -)
-             opts+=" -c ScratchBuffer"
-             [[ $1 == '-' ]] && opts+=" $1";;
-      -c)    if [[ $2 != \'* && $2 != \"* ]]; then
-               opts+=" -c \"$2\""
-               shift
-             else
-               opts+=" -c"
-               while [[ ! -z $2 ]]; do
-                 opts+=" $2"
-                 shift
-                 [[ $2 == *\' && $2 == *\" ]] && break
-               done
-             fi;;
-      -*|+*) opts+=" $1";;
-      *)     files+=" \"$1\"";;
+      --fast) opts+=" -c FastBuffer -c FastClipboard";;
+      --Fast) opts+=" -c FastVim -c FastClipboard";;
+      --scratch | -) # {{{
+        opts+=" -c ScratchBuffer"
+        [[ $1 == '-' ]] && opts+=" $1";; # }}}
+      --which) # {{{
+        shift
+        files=$(which $1 2>/dev/null)
+        [[ -z $files || ! -e $files ]] && echo "File not found" >/dev/stderr && exit 1;; # }}}
+      --type) # {{{
+        shift
+        $IS_MAC && ! declare -F | command grep -q " $1\$" && source $ALIASES --force
+        ! declare -F | command grep -q " $1\$" && echo "Function not found" >/dev/stderr && exit 1
+        f="$TMP_MEM_PATH/$1-vim.sh"
+        declare -f $1 >"$f"
+        sum="$(sha1sum "$f")"
+        if $0 -c 'set ft=bash' "$f" && [[ "$sum" != "$(sha1sum "$f")" ]]; then # {{{
+          if [[ -n $TMUX ]]; then
+            tmux send-keys " source $f; export -f $1"
+          elif which xclip >/dev/null 2>&1; then
+            echo "source $f" | command xclip -selection clipboard
+            echo "Paste the clipboard to source modified '$1()' function"
+          else
+            echo "Do: source $f"
+          fi
+        fi # }}}
+        exit 0
+        ;; # }}}
+      -c) # {{{
+        if [[ $2 != \'* && $2 != \"* ]]; then
+          opts+=" -c \"$2\""
+          shift
+        else
+          opts+=" -c"
+          while [[ ! -z $2 ]]; do
+            opts+=" $2"
+            shift
+            [[ $2 == *\' && $2 == *\" ]] && break
+          done
+        fi;; # }}}
+      --sort) # {{{
+        addEval=true; evalPred[${#evalPred[@]}]="sort";; # }}}
+      --path) # {{{
+        addEval=true; evalPred[${#evalPred[@]}]="sed -e 's|/home/.*/|//|g' -e 's|\./.*/|.//|g'";; # }}}
+      --eval) # {{{
+        addEval=true
+        shift; break;; # }}}
+      -*)    opts+=" $1";;
+      ++*)   opts+=" +\"execute 'normal! ${1#++}'\"";;
+      +*)    opts+=" \"$1\"";;
+      *)     files+=" \"$1\""; fileLast="$1";;
       esac # }}}
       shift
     done # }}}
-    [[ ! -z "$files" ]] && opts="$opts $open_file_method"
+    if $addEval; then # {{{
+      set -- "${evalPred[@]}" "$@"
+      if ! $stdin; then # {{{
+        opts+=" $open_file_method"
+        for f in $files; do
+          opts+=" <(cat $f"
+          for a; do
+            [[ ! -z $a ]] && opts+=" | $a"
+          done
+          opts+=")"
+        done # }}}
+      else # {{{
+        bbinary=
+        for a; do
+          [[ ! -z $a ]] && bbinary+="$a | "
+        done
+        binary="$bbinary$binary"
+      fi # }}}
+      files=
+      shift $#
+    fi # }}}
+    [[ ! -z "$files" ]] && opts+=" $open_file_method"
   elif $check_session_file; then
     if [[ $opts != *-S\ * ]]; then
       if [[ -f "Session.as.vim" ]]; then
-        opts="$opts -S Session.as.vim"
+        opts+=" -S Session.as.vim"
       elif [[ -f "Session.vim" ]]; then
-        opts="$opts -S Session.vim"
+        opts+=" -S Session.vim"
       fi
     fi
   fi
@@ -192,7 +257,7 @@ else
   files="$@"
 fi # }}}
 # Launch # {{{
-dbg "\"$binary\" $opts $files"
+echorm "$binary $opts $files"
 eval "$binary" $opts $files
 # }}}
 
