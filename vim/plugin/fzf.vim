@@ -21,12 +21,23 @@
 " OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 " WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+if exists('g:loaded_fzf_vim')
+  finish
+endif
+let g:loaded_fzf_vim = 1
+
 let s:cpo_save = &cpo
 set cpo&vim
 let s:is_win = has('win32') || has('win64')
 
+function! s:conf(name, default)
+  let conf = get(g:, 'fzf_vim', {})
+  let val = get(conf, a:name, get(g:, 'fzf_' . a:name, a:default))
+  return val
+endfunction
+
 function! s:defs(commands)
-  let prefix = get(g:, 'fzf_command_prefix', '')
+  let prefix = s:conf('command_prefix', '')
   if prefix =~# '^[^A-Z]'
     echoerr 'g:fzf_command_prefix must start with an uppercase letter'
     return
@@ -40,36 +51,40 @@ function! s:defs(commands)
 endfunction
 
 call s:defs([
-\'command!      -bang -nargs=? -complete=dir Files       call fzf#vim#files(<q-args>, <bang>0)',
-\'command!      -bang -nargs=? GitFiles                  call fzf#vim#gitfiles(<q-args>, <bang>0)',
-\'command!      -bang -nargs=? GFiles                    call fzf#vim#gitfiles(<q-args>, <bang>0)',
-\'command! -bar -bang -nargs=? -complete=buffer Buffers  call fzf#vim#buffers(<q-args>, <bang>0)',
-\'command!      -bang -nargs=* Lines                     call fzf#vim#lines(<q-args>, <bang>0)',
-\'command!      -bang -nargs=* BLines                    call fzf#vim#buffer_lines(<q-args>, <bang>0)',
-\'command! -bar -bang Colors                             call fzf#vim#colors(<bang>0)',
-\'command!      -bang -nargs=+ -complete=dir Locate      call fzf#vim#locate(<q-args>, <bang>0)',
-\'command!      -bang -nargs=* Ag                        call fzf#vim#ag(<q-args>, <bang>0)',
-\'command!      -bang -nargs=* Tags                      call fzf#vim#tags(<q-args>, <bang>0)',
-\'command!      -bang -nargs=* BTags                     call fzf#vim#buffer_tags(<q-args>, <bang>0)',
-\'command! -bar -bang Snippets                           call fzf#vim#snippets(<bang>0)',
-\'command! -bar -bang Commands                           call fzf#vim#commands(<bang>0)',
-\'command! -bar -bang Marks                              call fzf#vim#marks(<bang>0)',
-\'command! -bar -bang Helptags                           call fzf#vim#helptags(<bang>0)',
-\'command! -bar -bang Windows                            call fzf#vim#windows(<bang>0)',
-\'command! -bar -bang Commits                            call fzf#vim#commits(<bang>0)',
-\'command! -bar -bang BCommits                           call fzf#vim#buffer_commits(<bang>0)',
-\'command! -bar -bang Maps                               call fzf#vim#maps("n", <bang>0)',
-\'command! -bar -bang Filetypes                          call fzf#vim#filetypes(<bang>0)',
-\'command!      -bang -nargs=* History                   call s:history(<q-args>, <bang>0)'])
+\'command!      -bang -nargs=? -complete=dir Files              call fzf#vim#files(<q-args>, fzf#vim#with_preview(), <bang>0)',
+\'command!      -bang -nargs=? GitFiles                         call fzf#vim#gitfiles(<q-args>, fzf#vim#with_preview(<q-args> == "?" ? { "placeholder": "" } : {}), <bang>0)',
+\'command!      -bang -nargs=? GFiles                           call fzf#vim#gitfiles(<q-args>, fzf#vim#with_preview(<q-args> == "?" ? { "placeholder": "" } : {}), <bang>0)',
+\'command! -bar -bang -nargs=? -complete=buffer Buffers         call fzf#vim#buffers(<q-args>, fzf#vim#with_preview({ "placeholder": "{1}" }), <bang>0)',
+\'command!      -bang -nargs=* Lines                            call fzf#vim#lines(<q-args>, <bang>0)',
+\'command!      -bang -nargs=* BLines                           call fzf#vim#buffer_lines(<q-args>, <bang>0)',
+\'command! -bar -bang Colors                                    call fzf#vim#colors(<bang>0)',
+\'command!      -bang -nargs=+ -complete=dir Locate             call fzf#vim#locate(<q-args>, fzf#vim#with_preview(), <bang>0)',
+\'command!      -bang -nargs=* Ag                               call fzf#vim#ag(<q-args>, fzf#vim#with_preview(), <bang>0)',
+\'command!      -bang -nargs=* Rg                               call fzf#vim#grep("rg --column --line-number --no-heading --color=always --smart-case -- ".fzf#shellescape(<q-args>), fzf#vim#with_preview(), <bang>0)',
+\'command!      -bang -nargs=* RG                               call fzf#vim#grep2("rg --column --line-number --no-heading --color=always --smart-case -- ", <q-args>, fzf#vim#with_preview(), <bang>0)',
+\'command!      -bang -nargs=* Tags                             call fzf#vim#tags(<q-args>, fzf#vim#with_preview({ "placeholder": "--tag {2}:{-1}:{3..}" }), <bang>0)',
+\'command!      -bang -nargs=* BTags                            call fzf#vim#buffer_tags(<q-args>, fzf#vim#with_preview({ "placeholder": "{2}:{3..}" }), <bang>0)',
+\'command! -bar -bang Snippets                                  call fzf#vim#snippets(<bang>0)',
+\'command! -bar -bang Commands                                  call fzf#vim#commands(<bang>0)',
+\'command! -bar -bang Jumps                                     call fzf#vim#jumps(fzf#vim#with_preview({ "placeholder": "{2..4}"}), <bang>0)',
+\'command! -bar -bang Marks                                     call fzf#vim#marks(<bang>0)',
+\'command! -bar -bang Changes                                   call fzf#vim#changes(<bang>0)',
+\'command! -bar -bang Helptags                                  call fzf#vim#helptags(fzf#vim#with_preview({ "placeholder": "--tag {2}:{3}:{4}" }), <bang>0)',
+\'command! -bar -bang Windows                                   call fzf#vim#windows(fzf#vim#with_preview({ "placeholder": "{2}" }), <bang>0)',
+\'command! -bar -bang -nargs=* -range=% -complete=file Commits  let b:fzf_winview = winsaveview() | <line1>,<line2>call fzf#vim#commits(<q-args>, fzf#vim#with_preview({ "placeholder": "" }), <bang>0)',
+\'command! -bar -bang -nargs=* -range=% BCommits                let b:fzf_winview = winsaveview() | <line1>,<line2>call fzf#vim#buffer_commits(<q-args>, fzf#vim#with_preview({ "placeholder": "" }), <bang>0)',
+\'command! -bar -bang Maps                                      call fzf#vim#maps("n", <bang>0)',
+\'command! -bar -bang Filetypes                                 call fzf#vim#filetypes(<bang>0)',
+\'command!      -bang -nargs=* History                          call s:history(<q-args>, fzf#vim#with_preview(), <bang>0)'])
 
-function! s:history(arg, bang)
+function! s:history(arg, extra, bang)
   let bang = a:bang || a:arg[len(a:arg)-1] == '!'
   if a:arg[0] == ':'
     call fzf#vim#command_history(bang)
   elseif a:arg[0] == '/'
     call fzf#vim#search_history(bang)
   else
-    call fzf#vim#history(bang)
+    call fzf#vim#history(a:extra, bang)
   endif
 endfunction
 
@@ -77,7 +92,7 @@ function! fzf#complete(...)
   return call('fzf#vim#complete', a:000)
 endfunction
 
-if (has('nvim') || has('terminal') && has('patch-8.0.995')) && (get(g:, 'fzf_statusline', 1) || get(g:, 'fzf_nvim_statusline', 1))
+if (has('nvim') || has('terminal') && has('patch-8.0.995')) && (s:conf('statusline', 1) || s:conf('nvim_statusline', 1))
   function! s:fzf_restore_colors()
     if exists('#User#FzfStatusLine')
       doautocmd User FzfStatusLine

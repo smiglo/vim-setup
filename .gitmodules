@@ -81,9 +81,9 @@
 [submodule "git-plugins/notational-fzf-vim"]
 	path = git-plugins/notational-fzf-vim
 	url = https://github.com/Alok/notational-fzf-vim.git
-[submodule "git-plugins/Conque-GDB"]
-	path = git-plugins/Conque-GDB
-	url = https://github.com/smiglo/Conque-GDB.git
+# [submodule "git-plugins/Conque-GDB"]
+# 	path = git-plugins/Conque-GDB
+# 	url = git@github.com/smiglo/Conque-GDB.git
 [submodule "git-plugins/vim-freemarker"]
 	path = git-plugins/vim-freemarker
 	url = https://github.com/andreshazard/vim-freemarker.git

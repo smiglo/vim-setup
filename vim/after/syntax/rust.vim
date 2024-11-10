@@ -20,5 +20,5 @@ syntax match rsCuteOperator "!=" conceal cchar=≠
 
 hi link rsCuteOperator Operator
 
-setlocal conceallevel=2
+setlocal conceallevel=1
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# vim: fdl=0
+# vim: fdl=0 ft=sh
 
 # Functions # {{{
 checkRemoteVim() { # {{{
@@ -15,10 +15,11 @@ checkRemoteVim() { # {{{
 # }}}
 # Check vim location # {{{
 ! declare -f echorm >/dev/null 2>&1 && [[ -e $ECHOR_PATH/echor ]] && source $ECHOR_PATH/echor
-binary=${VIM_PATH:-"/usr/bin/vim"}
-if [[ ! -x "$binary" ]]; then
+! declare -f echorm >/dev/null 2>&1 && echor() { : ; }
+binary=$VIM_PATH
+if [[ -z $binary || ! -x "$binary" ]]; then
   echorm 2 "Binary vim ($binary) does not exist. Searching..."
-  if $IS_MAC; then
+  if ${IS_MAC:-false}; then
     list="~/Applications ~/Applications/vim /Applications /Applications/vim /Applications/Utilities /Applications/Utilities/vim"
     for i in $list; do
       [[ -d "$i/MacVim.app" ]] && binary="$i/MacVim.app/Contents/MacOS/Vim" && break
@@ -32,11 +33,14 @@ if [[ ! -x "$binary" ]]; then
   echorm 2 "[DONE ($binary)]"
 fi # }}}
 # Next, peek at the name used to invoke this script, and set options accordingly # {{{
+echorm --name vim
 name="$(basename "$0")"
 parsing_parameters=true
 open_file_method="-p"
-check_session_file=true
+check_session_file=false
 opts=
+optsEnd=
+diff_mode=false
 # }}}
 # Gui mode ? # {{{
 use_gui=${VIM_USE_GUI:-false}
@@ -52,17 +56,49 @@ if [[ "$1" == "@@" ]]; then
     ret_val="$(declare -F | awk '{print $3}' | command grep "^[^_]" | sort -u)";; # }}}
   --which) # {{{
     ret_val="$(echo -n "$PATH:." | xargs -d: -I{} -r -- find -L {} -maxdepth 1 -mindepth 1 -type f -executable -printf '%P\n' 2>/dev/null | sort -u)";; # }}}
+  --link) # {{{
+    ret_val="--all"
+    ret_val+=" $(command cd $VIM_SESSIONS_PATH 2>/dev/null && ls *.vim)"
+    ret_val+=" $(echo "$ret_val" | sed 's|\(\.as\)\?\.vim||')";; # }}}
   *) # {{{
-    ret_val="@@-f --scratch --fast --Fast -cl --type --which --no-session --abort-if-no-session"
-    if [[ $name == *-session || $3 == '-S' ]]; then
+    ret_val="@@-f --scratch --fast --Fast --fast-save --fast-quit --edit -1l -gg -ll -G -cl --type --which --session --no-session --link"
+    [[ ! -z $HISTFILE ]] && ret_val+=" -h"
+    if [[ $name == *-session || $name == vimS || $3 == '-S' ]]; then
       ret_val=
-      [[ "$(echo Session*.vim)" != 'Session*.vim' ]] && ret_val=" $(echo Session*.vim | sed -e 's/\(Session-\|\.vim\)//g') "
-      [[ -e 'Session.vim' && -L 'Session.vim' && "$ret_val" == *\ Session\ * ]] && ret_val="${ret_val/Session}"
+      if [[ -e "./.vim" ]]; then
+        ret_val="$(getFileList --pwd "./.vim" "*.vim" | sed -e 's/\(Session-\|\.vim\)//g')"
+      else
+        ret_val="$(getFileList "Session*.vim" | sed -e 's/\(Session-\|\.vim\)//g')"
+      fi
+      [[ -e 'Session.vim' && -L 'Session.vim' && " $ret_val " == *\ Session\ * ]] && ret_val="${ret_val/Session}"
     elif $use_gui; then
       [[ $2 == 1 ]] && ret_val="$($binary --serverlist)"
-    fi;; # }}}
+    fi ;; # }}}
   esac
   echo "$ret_val"
+  exit 0
+  # }}}
+elif [[ "$1" == "--link" ]]; then # {{{
+  shift
+  pre="Session-"
+  d="."; [[ -e "./.vim" ]] && d="./.vim" && pre=
+  [[ $1 == '--all' ]] && shift && set -- $(command cd $VIM_SESSIONS_PATH 2>/dev/null && ls *.vim | sed 's|\(\.as\)\?\.vim||' | sort -u)
+  for src; do
+    src="$VIM_SESSIONS_PATH/$src"
+    [[ -e $src || -e $src.vim || -e $src.as.vim ]] || continue
+    if [[ -e $src ]]; then
+      dst=$(basename $src) && dst=$pre${dst#Session-}
+      rm $d/$dst
+      ln -sf $src $d/$dst
+    else
+      for i in $src.vim $src.as.vim; do
+        [[ -e $i ]] || continue
+        dst=$(basename $i) && dst=$pre${dst#Session-}
+        rm -f $d/$dst
+        ln -sf $i $d/$dst
+      done
+    fi
+  done
   exit 0
 fi # }}}
 if $use_gui; then # {{{
@@ -88,88 +124,112 @@ if $use_gui; then # {{{
   case "$name" in
   m*|g*|r*|_m*|_g*|_r*)
     open_file_method="--remote-tab-silent"
-    opts="-g $opts -c FastClipboard --servername $server_name";;
+    opts="-g $opts --servername $server_name";;
   esac # }}}
 fi # }}}
 # Options for each of vim modes # {{{
 case "$name" in
 _*|*vimdiff*) open_file_method='';;&
 vimdiffgit)   opts+=" -c ':map qq :quitall!<CR>'";;&
-*vimdiff*)    opts+=" -dO";;
+*vimdiff*)    diff_mode=true; opts+=" -dO";;
 *view)        opts+=" -R";;
 *ex)          opts+=" -e";;
-*-session)   sessionFile="$1" # {{{
-             if [[ -z "$sessionFile" ]]; then # {{{
-               # Session from window name # {{{
-               if [[ -n $TMUX ]]; then
-                 sessionFile="$(tmux display-message -p -t $TMUX_PANE -F '#{window_name}')"
-                 sessionFile="${sessionFile,,}"
-                 if [[ -e "Session-$sessionFile.as.vim" ]]; then
-                   sessionFile="Session-$sessionFile.as.vim"
-                 elif [[ -e "Session-$sessionFile.vim" ]]; then
-                   sessionFile="Session-$sessionFile.vim"
-                 else
-                   sessionFile=
-                 fi
-               fi # }}}
-               # Default session # {{{
-               if [[ -z $sessionFile ]]; then
-                 if [[ -e "Session.as.vim" ]]; then
-                   sessionFile="Session.as.vim"
-                 elif [[ -e "Session.vim" ]]; then
-                   sessionFile="Session.vim"
-                 fi
-               fi # }}}
-               # Newest session # {{{
-               if [[ -z $sessionFile ]]; then
-                 if [[ $(echo Session-*.vim) != 'Session-*.vim' ]]; then
-                   sessionFile="$(ls -t Session-*.vim | head -n1)"
-                 fi
-               fi # }}}
-               # }}}
-             else # {{{
-               shift
-               [[ ! "$sessionFile" =~ ".vim" ]] && sessionFile="$sessionFile.vim"
-               [[ ! "$sessionFile" =~ "Session-" && "$sessionFile" != "Session."* ]] && sessionFile="Session-$sessionFile"
-               [[ ! -e "$sessionFile" && "$sessionFile" == *".as.vim" ]] && sessionFile="${sessionFile%.as.vim}.vim"
-               [[ ! -e "$sessionFile" ]] && echo "Session file [$sessionFile] does not exist" >/dev/stderr
-             fi # }}}
-             [[ -z "$sessionFile" || ! -e "$sessionFile" ]] && exit
-             if [[ "$sessionFile" == *".as.vim" && -e "${sessionFile/.as}" ]] && ! command grep -q "^edit" "$sessionFile"; then
-               echo "Broken autosave for "${sessionFile/.as}", restoring from original"
-               cp "$(readlink -f "$sessionFile")" "$(readlink -f "$sessionFile").bck"
-               cp "${sessionFile/.as}" "$sessionFile"
-             fi
-             opts+=" -S \"$sessionFile\""
-             ;; # }}}
+*-session | vimS) # {{{
+  [[ -e "./.vim" ]] && d="./.vim/" || d="./Session-"
+  sessionFile="$1"
+  if [[ -z "$sessionFile" ]]; then # {{{
+    # Session from window name # {{{
+    if [[ -n $TMUX ]]; then
+      title="$(tmux display-message -p -t $TMUX_PANE -F '#{window_name}')"
+      title="${title,,}"
+      for s in $title ${title%%--*}; do
+        if [[ -e "$d$s.as.vim" ]]; then
+          sessionFile="$d$s.as.vim"
+        elif [[ -e "$d$s.vim" ]]; then
+          sessionFile="$d$s.vim"
+        fi
+        [[ ! -z $sessionFile ]] && break
+        [[ $title == ${title%%--*} ]] && break
+      done
+    fi # }}}
+    # Default session # {{{
+    if [[ -z $sessionFile ]]; then
+      if [[ -e "${d%-}.as.vim" ]]; then
+        sessionFile="${d%-}.as.vim"
+      elif [[ -e "${d%-}.vim" ]]; then
+        sessionFile="${d%-}.vim"
+      fi
+    fi # }}}
+    # Newest session # {{{
+    if [[ -z $sessionFile ]]; then
+      sessionFile="$(getFileList -t -1 "${d%-}*.vim")"
+    fi # }}}
+    # }}}
+  else # {{{
+    shift
+    if [[ ! -e $sessionFile ]]; then
+      [[ "$sessionFile" != *".vim" ]] && sessionFile="$sessionFile.vim"
+      [[ ! -e "$sessionFile" && "$sessionFile" != "$d"* && "$sessionFile" != "${d%-}."* ]] && sessionFile="$d$sessionFile"
+      [[ ! -e "$sessionFile" && "$sessionFile" == *".as.vim" ]] && sessionFile="${sessionFile%.as.vim}.vim"
+      [[ ! -e "$sessionFile" ]] && echo "Session file [$sessionFile] does not exist" >/dev/stderr
+    fi
+  fi # }}}
+  [[ -z "$sessionFile" || ! -e "$sessionFile" ]] && exit
+  sed -i -e 's|'"${PWD/$HOME\//\~\/}"'/||' "$sessionFile"
+  if [[ "$sessionFile" == *".as.vim" && -e "${sessionFile/.as}" ]] && ! command grep -q "^edit" "$sessionFile"; then
+    echo "Broken autosave for "${sessionFile/.as}", restoring from original"
+    cp "$(readlink -f "$sessionFile")" "$(readlink -f "$sessionFile").bck"
+    cp "${sessionFile/.as}" "$sessionFile"
+  fi
+  if [[ -e "./.vim" ]]; then
+    ln -sf "$sessionFile" ./Session.tmp.vim
+    sessionFile="./Session.tmp.vim"
+    ( sleep 5; rm -f $sessionFile ) &
+    disown
+  fi
+  opts+=" -S \"$sessionFile\""
+  ;; # }}}
 esac # }}}
 # Parse arguments # {{{
 [[ "$name" == 'vi' ]] && check_session_file=false
 files=
-if $parsing_parameters; then
+if $parsing_parameters; then # {{{
   [[ ! -z $VIM_ENV ]] && set -- $VIM_ENV "$@"
   stdin=false
-  if [[ ! -t 0 ]]; then
+  if [[ ! -t 0 ]]; then # {{{
     stdin=true
     if [[ " $@ " != *\ -\ * ]]; then
       opts+=" -"
     fi
     [[ $1 == '-' ]] && shift
-  fi
-  if [[ ! -z "$1" ]]; then
+  fi # }}}
+  if ! $stdin && [[ $name == 'vim' && $@ == "--Fast" ]]; then # {{{
+    optsEnd+="-c 'source $HOME/.vim/autoload/fugitive.vim' -c :Files"
+  fi # }}}
+  if [[ ! -z "$1" ]]; then # {{{
     fileLast= addEval=false
     declare -a evalPred=
     while [[ ! -z "$1" ]]; do # {{{
       case $1 in # {{{
       --no-session) # {{{
         check_session_file=false;; # }}}
-      --abort-if-no-session) # {{{
-        [[ ! -e "Session.vim" ]] && exit;; # }}}
+      --session) # {{{
+        check_session_file=true;; # }}}
       -f1)    files+=" $2/$fileLast"; shift;;
       -S)     opts+=" $1 $2"; shift;;
       -cl)    opts+=" -c 'set cursorline'";;
-      --fast) opts+=" -c FastBuffer -c FastClipboard";;
-      --Fast) opts+=" -c FastVim -c FastClipboard";;
+      -1l | -gg) opts+=" -c 'normal gg'";;
+      -ll | -G ) opts+=" -c 'normal G'";;
+      --edit) opts+=" -c startinsert";;
+      --Fast) opts+=" -c FastVim";;
+      --fast-quit) opts+=" -c FastBuffer";;
+      --fast-save) opts+=" -c FastVimSave";;
+      --fast) # {{{
+        if ${VIM_USE_FAST_SAVE:-false}; then
+          opts+=" -c FastVimSave"
+        else
+          opts+=" -c FastBuffer"
+        fi;; # }}}
       --scratch | -) # {{{
         opts+=" -c ScratchBuffer"
         [[ $1 == '-' ]] && opts+=" $1";; # }}}
@@ -215,6 +275,15 @@ if $parsing_parameters; then
       --eval) # {{{
         addEval=true
         shift; break;; # }}}
+      -h) # {{{
+        [[ -z $HISTFILE || ! -e $HISTFILE ]] && exit 1
+        list="$(cat -n $HISTFILE | sort -s -k2 -u | sort -s -k1,1n | cut -c8- | tail -n 40 | tac | fzf --no-sort --prompt "command history> ")"
+        [[ -z $list ]] && exit 0
+        while read i; do
+          echorm "Command from history as a file: '$i'"
+          files+=" <($i)"
+        done < <(echo "$list")
+        ;; # }}}
       -*)    opts+=" $1";;
       ++*)   opts+=" +\"execute 'normal! ${1#++}'\"";;
       +*)    opts+=" \"$1\"";;
@@ -244,20 +313,39 @@ if $parsing_parameters; then
       shift $#
     fi # }}}
     [[ ! -z "$files" ]] && opts+=" $open_file_method"
-  elif $check_session_file; then
+  fi # }}}
+  if $check_session_file; then # {{{
     if [[ $opts != *-S\ * ]]; then
-      if [[ -f "Session.as.vim" ]]; then
-        opts+=" -S Session.as.vim"
-      elif [[ -f "Session.vim" ]]; then
-        opts+=" -S Session.vim"
+      suffixes=".as.vim .vim"
+      if [[ -n $TMUX ]]; then
+        wName="$(tmux display-message -pF '#W')" && wName="${wName,,}"
+        suffixes="$wName.as.vim $wName.vim $suffixes"
       fi
+      for d in ./.vim .; do
+        [[ -e $d ]] || continue
+        prefix=
+        case $d in
+        .) prefix="Session-";;
+        esac
+        for s in $suffixes; do
+          if [[ -e $d/$prefix$s ]]; then
+            opts+=" -S $d/$prefix$s"
+            break 2
+          fi
+        done
+      done
     fi
-  fi
-else
+  fi # }}}
+# }}}
+else # {{{
   files="$@"
 fi # }}}
+# }}}
 # Launch # {{{
-echorm "$binary $opts $files"
-eval "$binary" $opts $files
+if $diff_mode && [[ ! -z $files ]]; then
+  eval command diff -q $files >/dev/null 2>&1 && echor "Files are the same" && exit 0
+fi
+echorm "$binary $opts $optsEnd $files"
+eval "$binary" $opts $optsEnd $files
 # }}}
 

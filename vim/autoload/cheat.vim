@@ -59,11 +59,26 @@ if(!exists("g:CheatSheetShowCommentsByDefault"))
     let g:CheatSheetShowCommentsByDefault=1
 endif
 
+" Go to old buffer
+if(!exists("g:CheatSheetStayInOrigBuf"))
+    let g:CheatSheetStayInOrigBuf=1
+endif
+
 if(!exists("s:isNeovim"))
     redir => ver
     silent version
     redir END
     let s:isNeovim = (match(ver, 'NVIM')!=-1)
+endif
+
+if(has('nvim'))
+    let s:jobstart="jobstart"
+    let s:joboutput = "on_stdout"
+    let s:jobexit = "on_exit"
+else
+    let s:jobstart="job_start"
+    let s:joboutput = "callback"
+    let s:jobexit = "close_cb"
 endif
 
 let s:history=[]
@@ -82,6 +97,9 @@ endfunction
 
 " Print nice messages
 function! cheat#echo(msg,type)
+  if (exists('g:CheatSheetSilent') && g:CheatSheetSilent == 1 && index(['e', 'w', 'q'], a:type) < 0)
+      return
+  endif
   if a:type=='e'
     let group='ErrorMsg'
   elseif a:type=='w'
@@ -211,33 +229,36 @@ function! cheat#cheat(query, froml, tol, range, mode, isplusquery) range
         endif
     else
         if(a:query == "")
-            let query=substitute(s:get_visual_selection(a:froml,a:tol, a:range),
-                        \'^\s*', '', '')
+            let query=s:get_visual_selection(a:froml,a:tol, a:range)
         else
             let query=a:query
         endif
     endif
 
-    let request=cheat#requests#init(query,a:isplusquery != '!')
-
     " Reactivate history if required
     let s:isInHistory=0
-    if(a:mode != 5)
-        let request.mode=a:mode
-    endif
+    call s:handleRequest(cheat#requests#init(query,a:mode, a:isplusquery != '!'))
+endfunction
 
-    " Set append pos / remove query if required
-    if(request.mode == 1)
-        call cheat#echo('removing lines', 'e')
-        normal dd
-        let request.appendpos=getcurpos()[1]-1
-    elseif(request.mode == 3)
-        let request.appendpos=getcurpos()[1]
-    elseif(request.mode == 4)
-        let request.appendpos=getcurpos()[1]-1
+function! cheat#howin(query, froml, tol, range)
+    let mode=g:CheatSheetDefaultMode
+    if(mode ==2 && s:isNeovim == 1)
+        call cheat#echo('Pager mode does not work with neovim'.
+                    \' use <leader>KB instead', 'e')
+        return
     endif
-
-    call s:handleRequest(request)
+    let query = split(a:query)
+    let ft=query[0]
+    if(len(query) == 1)
+        let query=s:get_visual_selection(a:froml,a:tol, a:range)
+    else
+        let query=join(query[1:], ' ')
+    endif
+    " Reactivate history if required
+    let s:isInHistory=0
+    let req=cheat#requests#init(query,mode,0)
+    let req.ft=ft
+    call s:handleRequest(req)
 endfunction
 
 " Prints a message about the query to be prossessed
@@ -321,19 +342,24 @@ function! s:handleRequest(request)
         " Update ft
         let ft=a:request.ft
         execute ': set ft='.ft
-        execute s:oldbuf . 'wincmd w'
+        if g:CheatSheetStayInOrigBuf != 0
+            execute s:oldbuf . 'wincmd w'
+        else
+            normal gg
+        endif
         redraw!
     endif
 
     call s:displayRequestMessage(a:request)
     let s:lines = []
-    let has_job=has('job')
+    let has_job = has('job') || has('nvim')
     let curl=s:getUrl(query, has_job)
     if(has_job)
         " Asynchronous curl
-        let s:job = job_start(curl,
-                    \ {"callback": "cheat#handleRequestOutput",
-                    \ "close_cb": "cheat#printAnswer"})
+        call function(s:jobstart)(curl,
+                    \ {s:joboutput: "cheat#handleRequestOutput",
+                    \ s:jobexit: "cheat#printAnswer"})
+
     else
         " Synchronous curl
         let s:lines=systemlist(curl)
@@ -342,7 +368,7 @@ function! s:handleRequest(request)
     endif
 endfunction
 
-function! cheat#printAnswer(channel)
+function! cheat#printAnswer(channel, ...)
     let request=s:lastRequest()
     if(request.mode == 0)
         call cheat#createOrSwitchToBuffer()
@@ -353,21 +379,23 @@ function! cheat#printAnswer(channel)
     if(request.mode == 0)
         normal Gddgg
     endif
-    execute s:oldbuf . 'wincmd w'
-    " Clean stuff
-    if(exists('s:job'))
-        call job_stop(s:job)
-        unlet s:job
+    if g:CheatSheetStayInOrigBuf != 0
+        execute s:oldbuf . 'wincmd w'
+    else
+        normal gg
     endif
     unlet s:lines
 endfunction
 
 " Read answer line by line
-function! cheat#handleRequestOutput(channel, msg)
-    if(a:msg == "DETACH")
-        return
+function! cheat#handleRequestOutput(channel, msg, ...)
+    if has('nvim')
+        call extend(s:lines, a:msg[1:])
+    else
+        if a:msg != "DETACH"
+            call add(s:lines, a:msg)
+        endif
     endif
-    call add(s:lines, a:msg)
 endfunction
 
 " Returns the text that is currently selected
@@ -375,21 +403,23 @@ function! s:get_visual_selection(froml, tol, range)
     " Why is this not a built-in Vim script function?!
     if(a:range<=0)
         if(g:CheatSheetDefaultSelection == "line")
-            return join(getline(a:froml, a:tol), " ")
+            let ret=getline(a:froml)
         else
-            return expand("<cword>")
+            let ret=expand("<cword>")
         endif
+    else
+        "visual mode
+        let [line_start, column_start] = getpos("'<")[1:2]
+        let [line_end, column_end] = getpos("'>")[1:2]
+        let lines = getline(line_start, line_end)
+        if len(lines) == 0
+            return ''
+        endif
+        let lines[-1] = lines[-1][: column_end - (&selection == 'inclusive' ? 1 : 2)]
+        let lines[0] = lines[0][column_start - 1:]
+        let ret= join(lines, " ")
     endif
-    "visual mode
-    let [line_start, column_start] = getpos("'<")[1:2]
-    let [line_end, column_end] = getpos("'>")[1:2]
-    let lines = getline(line_start, line_end)
-    if len(lines) == 0
-        return ''
-    endif
-    let lines[-1] = lines[-1][: column_end - (&selection == 'inclusive' ? 1 : 2)]
-    let lines[0] = lines[0][column_start - 1:]
-    return join(lines, " ")
+    return substitute(ret,'^\s*', '', '')
 endfunction
 
 function! cheat#toggleComments()

@@ -2968,7 +2968,7 @@ function! s:Blame(bang, line1, line2, count, mods, args) abort
         endif
         setlocal nomodified nomodifiable nonumber scrollbind nowrap foldcolumn=0 nofoldenable winfixwidth filetype=fugitiveblame buftype=nowrite
         if exists('+concealcursor')
-          setlocal concealcursor=nc conceallevel=2
+          setlocal concealcursor=nc conceallevel=1
         endif
         if exists('+relativenumber')
           setlocal norelativenumber

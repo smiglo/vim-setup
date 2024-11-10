@@ -17,7 +17,6 @@ Features                                                    *cheat.sh-features* 
 How to use it                                             *cheat.sh-how-to-use* ~
 
 The easiest way to use this plugin is to use one of the following mappings :
-The easiest way to use this plugin is to use one of the following mappings :
 
 + `K` get answer on the word under the cursor or the selection on a pager (this
 feature requires vim >= 7.4.1833, you can check if have the right version with :
@@ -49,9 +48,41 @@ sheets or write your own [query](https://github.com/chubin/cheat.sh#search).
 + They also take a `bang` that make same transform the query into a plus query:
 for instance : `:Cheat! factory` is the same as `:Cheat &ft/factory+`.
 
+HowIn                                                          *cheat.sh-howin* ~
+
+The `:HowIn` command takes exaclty one argument.
+
+If the argument is one word, it is interpreted as a filetype (language), and
+the current line (or word, depending on |cheat.sh-configuration|) is sent as a
+query for this given language.
+Else the first word of the query should be a  filetype.
+
+Examples :
+
+>
+    # Current postion in the buffer :
+    with open('foo') as f:
+    :HowIn javascript
+<
+Or
+>
+    :Howin javascript open file
+<
+
+
 Frameworks                                                *cheat.sh-frameworks* ~
 
-When you open a buffer, cheat.sh-vim will try to guess if you are using a
+Framework detection can slow down vim openning see
+[#54](https://gitlab.com/dbeniamine/cheat.sh-vim/-/issues/54) so it has been
+disabled by default.
+
+To enable framework detection you can set the folowwing in your `vimrc`:
+
+>
+    let g:CheatSheetDisableFrameworkDetection=0
+<
+
+Once this configuration is doen, when you open a buffer, cheat.sh-vim will try to guess if you are using a
 framework (see |cheat.sh-framework-detection|) and if a framework is found, it
 will send queries using your framework instead of your filetype.
 
@@ -243,7 +274,7 @@ are the default values that will be used if you do not change them) :
     " cheat sheet base url
     let g:CheatSheetBaseUrl='https://cht.sh'
 
-    " cheat sheet settings do not include style settings neiter comments, 
+    " cheat sheet settings do not include style settings neiter comments,
     " see other options below
     let g:CheatSheetUrlSettings='q'
 
@@ -256,6 +287,9 @@ are the default values that will be used if you do not change them) :
     " Show comments in answers by default
     " (setting this to 0 means giving ?Q to the server)
     let g:CheatSheetShowCommentsByDefault=1
+
+    " Stay in origin buffer (set to 0 to keep focus on the cheat sheet buffer)
+    let g:CheatSheetStayInOrigBuf=1
 
     " cheat sheet buffer name
     let g:CheatSheetBufferName="_cheat"
@@ -270,6 +304,9 @@ are the default values that will be used if you do not change them) :
     " 3 => paste after query
     " 4 => paste before query
     let g:CheatSheetDefaultMode=0
+
+    " Make plugin silent by  setting bellow variable to 1
+    let g:CheatSheetSilent=0
 
      Path to cheat sheet cookie
     let g:CheatSheetIdPath=expand('~/.cht.sh/id')

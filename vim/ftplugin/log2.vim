@@ -4,6 +4,6 @@ setlocal nowrap
 setlocal cursorline
 setlocal iskeyword+=-,:,.
 setlocal foldlevel=1 foldmethod=marker
-setlocal foldmarker=TB]\ BB,TB]\ AA
+" setlocal foldmarker=TB]\ BB,TB]\ AA
 syntax on
 

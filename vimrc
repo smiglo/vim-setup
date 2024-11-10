@@ -50,6 +50,7 @@ set undolevels=5000                                                 " set undole
 set tabpagemax=100                                                  " max number of opened tabs
 set lazyredraw                                                      " do not refresh screen when executing a macro
 set modeline                                                        " vim setup at the end of a file
+set splitright
 set statusline=
 set statusline+=%<\                                                 " Trim if too long
 set statusline+=%#StatusLineMark#%(%{TBSBFilename(0)}%*\ %)         " File name
@@ -108,7 +109,7 @@ set listchars=tab:\|\⋅,trail:¬,extends:\#,precedes:\#,conceal:∙
 set list     " enables list by default
 set nowrap        " wrap disabled
 let &showbreak = ' ↳ ⋅'
-if v:version > 801 || v:version == 801 && has("patch360")
+if v:version < 900 && ( v:version > 801 || v:version == 801 && has("patch360"))
   set diffopt=indent-heuristic,algorithm:patience
 else
   set diffopt=
@@ -165,12 +166,12 @@ function! MyFoldText()
   return  '➣ ' . substitute(v:folddashes, '-', '∙', 'g') . ' [ ' . sub . ' ' . char . ' ' . lines . ' lines ] '
 endfunction
 
+set foldmethod=marker
+set foldmarker=#\ {{{,#\ }}}
 autocmd FileType python       setlocal foldmethod=indent
-autocmd FileType vim          setlocal foldmethod=marker
-autocmd FileType sh           setlocal foldmethod=marker
-autocmd FileType conf         setlocal foldmethod=marker
 autocmd FileType lua,go,c,cpp setlocal foldmethod=syntax
 autocmd FileType arduino      setlocal foldmethod=syntax
+autocmd FileType vim          setlocal foldmarker={{{,}}}
 
 " let g:vim_markdown_folding_disabled=1
 
@@ -274,14 +275,11 @@ if has("autocmd")
     autocmd BufRead,BufWritePost,FocusGained,BufEnter * call TBUpdateGitStatus()
   endif
 
-  autocmd
-        \ FileType make,git*,python
-        \ setlocal list tabstop=4 noexpandtab
+  autocmd FileType make setlocal list tabstop=4 noexpandtab
 
   " Auto reload vimrc when it's saved
   autocmd BufWritePost ~/.vimrc source ~/.vimrc
 
-  " Pairs : (《,》), (∙,∙), (►,●)
   autocmd Syntax h,vim,c,cpp
         \ syn match foldMarkerB /{\{3\}\d*/ conceal cchar=► containedin=ALL |
         \ syn match foldMarkerE /}\{3\}\d*/ conceal cchar=● containedin=ALL |
@@ -290,24 +288,32 @@ if has("autocmd")
         \ syn cluster cCommentGroup   add=foldMarkerB,foldMarkerE |
         \ syn cluster shCommentGroup  add=foldMarkerB,foldMarkerE |
         \ syn cluster vimCommentGroup add=foldMarkerB,foldMarkerE |
-        \ set conceallevel=2
+        \ setlocal conceallevel=0
 
   autocmd Syntax sh
-        \ syn keyword shMyKeywordE  echo printf                         containedin=ALLBUT,shComment,shSingleQuote,shDoubleQuote |
-        \ syn keyword shMyKeywordE  cl clf echoc printfc                containedin=ALLBUT,shComment,shSingleQuote,shDoubleQuote |
-        \ syn keyword shMyKeyword   echor echorv echorc echore echorm   containedin=ALLBUT,shComment,shSingleQuote,shDoubleQuote |
-        \ syn keyword shMyKeyword2  FAT ERR WRN INF DBG TRC dbgF dbg    containedin=ALLBUT,shComment,shSingleQuote,shDoubleQuote |
-        \ syn keyword shMyKeyword2  logger timeMeasure                  containedin=ALLBUT,shComment,shSingleQuote,shDoubleQuote |
-        \ syn keyword shMyKeywordB  true false                          containedin=ALLBUT,shComment |
+        \ syn match foldMarkerB /{\{3\}\d*/ conceal cchar=► containedin=ALL |
+        \ syn match foldMarkerE /}\{3\}\d*/ conceal cchar=● containedin=ALL |
+        \ syn keyword shMyKeywordE  echo printf                           containedin=ALLBUT,shComment,shSingleQuote,shDoubleQuote |
+        \ syn keyword shMyKeywordE  cl clf echoc printfc                  containedin=ALLBUT,shComment,shSingleQuote,shDoubleQuote |
+        \ syn keyword shMyKeyword   echor echorv echorc echore echorm     containedin=ALLBUT,shComment,shSingleQuote,shDoubleQuote |
+        \ syn keyword shMyKeyword2  FAT ERR WRN INF DBG TRC dbgF dbg dbgC containedin=ALLBUT,shComment,shSingleQuote,shDoubleQuote |
+        \ syn keyword shMyKeyword   die                                   containedin=ALLBUT,shComment,shSingleQuote,shDoubleQuote |
+        \ syn keyword shMyKeyword2  getTS                                 containedin=ALLBUT,shComment,shSingleQuote,shDoubleQuote |
+        \ syn keyword shMyKeyword2  timeMeasure                           containedin=ALLBUT,shComment,shSingleQuote,shDoubleQuote |
+        \ syn keyword shMyKeywordB  true false                            containedin=ALLBUT,shComment |
         \ syn match   shMyGlobVar   /[012&]\?\(>\{0,2\}\|<\?\)\/dev\/\%\(stdout\|stderr\|null\|tty\)/     containedin=ALLBUT,shComment |
         \ syn match   shMyGlobVar   /[12&]\?>>\?&[12]/                                                    containedin=ALLBUT,shComment |
         \ syn match   shMySet       /set \+[-+][xv]\+/                                                    containedin=ALLBUT,shComment |
-        \ hi! def link shMyKeyword  Question                                        |
-        \ hi! def link shMyKeyword2 GruvboxAquaBold                                 |
-        \ hi! def link shMyKeywordE DiffDelete                                      |
-        \ hi! def link shMyKeywordB Type                                            |
-        \ hi! def link shMyGlobVar  GruvboxGray                                     |
-        \ hi! def link shMyset      WildMenu
+        \ syn match   shVariable    /\<\h\w*\ze+\?=/ nextgroup=shVarAssign |
+        \ hi def link foldMarkerB Comment               |
+        \ hi def link foldMarkerE Comment               |
+        \ hi! def link shMyKeyword  Question            |
+        \ hi! def link shMyKeyword2 GruvboxAquaBold     |
+        \ hi! def link shMyKeywordE DiffDelete          |
+        \ hi! def link shMyKeywordB Type                |
+        \ hi! def link shMyGlobVar  GruvboxGray         |
+        \ hi! def link shMyset      WildMenu            |
+        \ setlocal conceallevel=0
 
   " Save all files when vim loses focus
   au FocusLost * silent! wa
@@ -339,7 +345,7 @@ if has("autocmd")
   au BufNewFile,BufRead *.service  setf systemd
 
   " Session stuff
-  au VimEnter * if ! exists("g:TBSessionDir") | let g:TBSessionDir = getcwd() | endif
+  au VimEnter * if ! exists("g:TBSessionDir") || ! isdirectory(g:TBSessionDir) | let g:TBSessionDir = getcwd() | endif
   au VimLeave * if exists("g:TBSessionName") | call TBSessSave(TBSessGetName(), 1) | endif
   au WinEnter * if exists("g:TBSessionName") | call TBSessUpdate() | endif
   au SessionLoadPost * let g:TBSessionSaveTimeLast = localtime()
@@ -383,7 +389,7 @@ if !exists(":DiffOrig")
 endif
 " }}}
 " My Own {{{
-" Functions & Commands{{{
+" Functions & Commands {{{
 " Sessions {{{
 function! TBSessGetName(...) " {{{
   if ! exists("g:TBSessionName") | return "" | endif
@@ -405,9 +411,11 @@ endfunction " }}}
 function! TBSessGetFile(auto_save, local) " {{{
   let l:ret = TBSessGetName()
   if l:ret == "" | return "" | endif
-  if a:local == 1 | let l:ret = substitute(l:ret, "--.*", "", "") | endif
-  if l:ret !~ "Session"
-    if a:local == 1 | let l:ret = "Session-" . l:ret | endif
+  if a:local == 1 || l:ret == "Session"
+    let l:ret = substitute(l:ret, "--.*", "", "")
+    if isdirectory(".vim") | let l:ret = "./.vim/" . substitute(l:ret, "Session-?", "", "")
+    elseif l:ret !~ "Session" | let l:ret = "Session-" . l:ret
+    endif
   endif
   if a:auto_save == 1 | let l:ret .= ".as" | endif
   let l:ret .= ".vim"
@@ -430,7 +438,9 @@ function! TBSessSave(...) " {{{
   let l:sessionName = ""
   let l:pwd = getcwd()
   let l:sessionDir = l:pwd
-  if exists("g:TBSessionDir") | let l:sessionDir = g:TBSessionDir | endif
+  if exists("g:TBSessionDir") && isdirectory(g:TBSessionDir) | let l:sessionDir = g:TBSessionDir
+  else | let g:TBSessionDir = l:sessionDir
+  endif
   if a:0 >= 1
     let l:sessionName = a:1
   else
@@ -448,7 +458,6 @@ function! TBSessSave(...) " {{{
     let l:filename_cwd = TBSessGetFile(l:auto_save, 1)
     call system("mv " . l:filename_vsd . " $VIM_SESSIONS_PATH/")
     call system("ln -sf $VIM_SESSIONS_PATH/" . l:filename_vsd . " " . l:filename_cwd)
-    call system("ln -sf " . l:filename_cwd . " Session.vim")
   endif
   execute "lcd " . l:pwd
 endfunction
@@ -600,15 +609,14 @@ function! TBACMRun()
   execute "!./a.out <" . expand("%") . ".txt"
 endfunction
 " }}}
-" Scratch Buffers # {{{
+" Scratch Buffers {{{
 command! SaveTmp if &buftype == 'nofile' | setlocal buftype= | endif | let ft=&filetype | if ft == '' | let ft='tmp' | elseif ft == 'default' || ft == 'text' | let ft='txt' | endif | execute 'save' . tempname() . '.' . ft
 nnoremap <silent> <F12>cs :execute 'SaveTmp'<CR>
-command! FastBuffer execute 'FastClipboardLocal' | setlocal buftype= bufhidden=hide noswapfile cursorline | noremap <buffer> q<CR> :quit!<CR>    | noremap qq<CR> :quitall!<CR> | execute "noremap <buffer> <special> <silent> \<F12\>cF :execute 'ScratchBuffer'<CR>"
-command! FastVim    execute 'FastClipboardLocal' | setlocal buftype= bufhidden=hide noswapfile cursorline | noremap          q<CR> :quitall!<CR> | noremap qq<CR> :quitall!<CR> | execute "noremap <buffer> <special> <silent> \<F12\>cF :execute 'ScratchBuffer'<CR>"
+command! FastBuffer    setlocal buftype= bufhidden=hide noswapfile cursorline | noremap <buffer> q<CR> :quit!<CR>    | noremap qq<CR> :quitall!<CR> | execute "noremap <buffer> <special> <silent> \<F12\>cF :execute 'ScratchBuffer'<CR>"
+command! FastVim       setlocal buftype= bufhidden=hide noswapfile cursorline | noremap          q<CR> :quit!<CR>    | noremap qq<CR> :quitall!<CR> | execute "noremap <buffer> <special> <silent> \<F12\>cF :execute 'ScratchBuffer'<CR>"
+command! FastVimSave   noremap          q<CR> :xa!<CR>      | noremap qq<CR> :quitall!<CR> | execute "noremap <buffer> <special> <silent> \<F12\>cF :execute 'ScratchBuffer'<CR>"
 command! ScratchBuffer execute 'FastBuffer' | setlocal buftype=nofile | execute "noremap <buffer> <special> <silent> \<F12\>cF :execute 'FastBuffer'<CR>"
-command! FastClipboardLocal nnoremap <buffer> pp "+p| nnoremap pP "+P| nnoremap <buffer> Y "+y$| vnoremap Y $"+y
-command! FastClipboard nnoremap pp "+p| nnoremap pP "+P| nnoremap Y "+y$| vnoremap Y $"+y
-command! NormClipboard unmap pp | unmap pP | unmap y |  unmap Y
+command! NormClipboard unmap y                 |  unmap Y
 " }}}
 " Building {{{
 function! TBBldGetMakefile() " {{{
@@ -711,6 +719,15 @@ function! TBSBGitStatus() " {{{
   if ! exists('g:GitShowStatus') || g:GitShowStatus == 0 | return l:ret | endif
   let dir = FugitiveWorkTree()
   if empty(l:dir) | return l:ret | endif
+  if l:ret =~# '^\x\{7,\}$'
+    if !exists('g:GitName') | let g:GitName = {} | endif
+    if !has_key(g:GitName, l:ret)
+      let git_dir = l:dir . '/.git'
+      let head = system('git --work-tree=' . l:dir . ' --git-dir=' . l:git_dir . ' name-rev HEAD' . " | head -n1 | awk '{print $2'}")[0:-2]
+      let g:GitName[l:ret] = substitute(l:head, '\C^\%(heads/\|remotes/\|tags/\)\=', '', '')
+    endif
+    let l:ret = g:GitName[l:ret]
+  endif
   if !exists('g:GitStatusDict') || !has_key(g:GitStatusDict, l:dir) | call TBUpdateGitStatus() | endif
   let st = g:GitStatusDict[l:dir]
   if empty(l:st) | let st = '=' | endif
@@ -887,10 +904,7 @@ nnoremap <silent> <C-q>\    :call TBTmuxSplit({'d': '<Bar>'})<CR>
 nnoremap <silent> <C-q>l    :call TBTmuxSplit({'d': '<Bar>', 'par': 'git l ' . expand('%:t')})<CR>
 nnoremap <silent> <C-q>L    :call TBTmuxSplit({'d': '<Bar>', 'par': 'git l ' . expand('%:p:h')})<CR>
 nnoremap <silent> <C-q><CR> :call TBTmuxSplit({'wnd': '1'})<CR>
-function! TBSendToPane(target)
-  execute '!$BASH_PATH/aliases fzf_exe -c pane --pane ' . a:target . ' -f ' . shellescape(expand('%:p')) . ' || true'
-endfunction
-command! -nargs=? TBSendToPane call TBSendToPane(<args>) " }}}
+" }}}
 " Send To Pane " {{{
 function! TBSendToPaneCompl(A, L, P) " {{{
   if $IS_MAC == 'true' | let l:cmd = "pstree $p | command grep -q '[M]acOS/Vim'"
@@ -910,10 +924,17 @@ function! TBSendToPane(...) " {{{
   let t = "." . v:count1
   if a:0 >= 1 && a:1 != "" | let t = a:1 | endif
   if l:t !~ ".*\..*" | let t .= ".1" | endif
-  execute '!$BASH_PATH/aliases fzf_exe -c pane --pane ' . l:t . ' -f ' . shellescape(expand('%:p'))
+  let f = expand('%:p')
+  if filereadable(l:f)
+    silent execute '!$ALIASES fzf_exe -c pane --pane ' . l:t . ' -f ' . shellescape(l:f)
+    execute ':redraw!'
+  else
+    echom "Not existing file [" . l:f . "]"
+  endif
 endfunction " }}}
 command! -nargs=? -complete=customlist,TBSendToPaneCompl TBSendToPane call TBSendToPane(<q-args>)
-nnoremap <silent> <F2> :<C-u>TBSendToPane<CR>
+nnoremap     <F2>  <C-w>gf
+nnoremap <silent>  <Leader><F2> :<C-u>TBSendToPane<CR>
 nnoremap <F12><F2> :<C-u>TBSendToPane 
 " }}}
 " Log Inserter " {{{
@@ -929,9 +950,17 @@ function! TBInsertLog(...) " {{{
     call extend(g:TBLogMap, { l:key: {
           \ 'cmd'  : get(a:000, l:id + 1, ''),
           \ 'style': get(a:000, l:id + 2, '') }})
-    return 0 " }}}
-  elseif get(a:000, 0) == 'DBG' " {{{
-    let line = "\<ESC>mmA // TB] Dbg" . l:id . "\<ESC>`mmm"
+    return 0
+  endif " }}}
+  let commentType = "#"
+  let ft=&filetype
+  if index(["c", "cpp"], ft) >= 0
+    let commentType = "//"
+  elseif index(["vim"], ft) >= 0
+    let commentType = '"'
+  endif
+  if get(a:000, 0) == 'DBG' " {{{
+    let line = "\<ESC>mmA " . l:commentType . " TB] Dbg" . l:id . "\<ESC>`mmm"
     if mode() == 'i' | let line .= 'i' | endif
     return l:line
   endif " }}}
@@ -974,7 +1003,7 @@ function! TBInsertLog(...) " {{{
   else
     let cmd .= '");'
   endif
-  let cmd .= ' // TB] Dbg' . l:id
+  let cmd .= ' ' . l:commentType . ' TB] Dbg' . l:id
   let @9 = l:cmd
   " Insert space and delete it (keep indent), Paste Reg#9, Press esc, go to the beginning, move right nth. and change mode to insert
   let cmd = " \<BS>" . "\"9p" . "\<ESC>^" . l:len . 'l'
@@ -1014,18 +1043,24 @@ iabbr //- //--------------------------------------------------------------------
 " }}}
 " Mappings {{{
 " To small to catalogue {{{
-nnoremap <silent> <F12>cl       :if &conceallevel == 2 <Bar> set conceallevel=0 <Bar> else <Bar> set conceallevel=2 <Bar> endif<CR>
+nnoremap <silent> <F12>cl       :if &conceallevel == 1 <Bar> setlocal conceallevel=0 <Bar> else <Bar> setlocal conceallevel=1 <Bar> endif<CR>
 nnoremap <silent> <F12>gf       :execute 'silent !tmux set-buffer "' . expand('%:p:~') . '"' <Bar> redraw!<CR>
 nnoremap          <F12>h        :Map<CR>
 nnoremap          <Leader>ttt   :terminal<CR>
+nnoremap <silent> <F6>          :redraw!<CR>
+nnoremap <silent> <F12>s        :exe "tabn " . g:LastTab <BAR> let this_tab = bufname('%') <BAR> exe "tabn " . g:LastTab <BAR> exe 'vsplit ' . this_tab <BAR> exe "tabclose " . g:LastTab <BAR> unlet this_tab<CR>
 " <c-i> is the same as <tab> and tab is changed to "%", thus <c-l> map the
 " behaviour of <c-i>, i.e. jump to newer cursor position in jump list
 noremap           <c-l>   <c-i>
+nnoremap <silent> <Leader>cf  :let @f = expand("%")   <BAR> let @+=@f<CR>
+nnoremap <silent> <Leader>cF  :let @f = expand("%:t") <BAR> let @+=@f<CR>
+nnoremap <silent> <Leader>cFF :let @f = expand("%:p") <BAR> let @+=@f<CR>
+vnoremap <CR> y
 " }}}
 " cd # {{{
-nnoremap <silent> <Leader>tcd  :execute "tcd " . expand("%:h")<CR>
-nnoremap <silent> <Leader>lcd  :execute "tcd " . expand("%:h")<CR>
-nnoremap <silent> <Leader>mcd  :execute "cd " . g:TBSessionDir<CR>
+nnoremap <silent> <Leader>tcd  :execute "tcd " . expand("%:p:h")<CR>
+nnoremap <silent> <Leader>lcd  :execute "tcd " . expand("%:p:h")<CR>
+nnoremap <silent> <Leader>mcd  :execute "cd "  . g:TBSessionDir<CR>
 " }}}
 " Arrow keys disabled {{{
 nnoremap <up> <nop>
@@ -1058,14 +1093,32 @@ nnoremap <Leader>da A //TB] Dbg<Esc>
 nnoremap <Leader><space> i a 
 vnoremap <Leader><space> `<i `>la hv`<l
 
-nnoremap <Leader><space>( i(a)
-nnoremap <Leader><space>[ i[a]
-nnoremap <Leader><space>{ i{a}
-nnoremap <Leader><space>< i<a>
-nnoremap <Leader><space>" i"a"
-nnoremap <Leader><space>' i'a'
-nnoremap <Leader><space>` i`a`
-nnoremap <Leader><space>p Plp
+nmap <Leader><space>( viw<Leader><space>(
+nmap <Leader><space>[ viw<Leader><space>[
+nmap <Leader><space>{ viw<Leader><space>{
+nmap <Leader><space>< viw<Leader><space><
+nmap <Leader><space>" viw<Leader><space>"
+nmap <Leader><space>' viw<Leader><space>'
+nmap <Leader><space>` viw<Leader><space>`
+nmap <Leader><space>p viw<Leader><space>p
+
+nmap 2<Leader><space>( viw2<Leader><space>(
+nmap 2<Leader><space>[ viw2<Leader><space>[
+nmap 2<Leader><space>{ viw2<Leader><space>{
+nmap 2<Leader><space>< viw2<Leader><space><
+nmap 2<Leader><space>" viw2<Leader><space>"
+nmap 2<Leader><space>' viw2<Leader><space>'
+nmap 2<Leader><space>` viw2<Leader><space>`
+nmap 2<Leader><space>p viw2<Leader><space>p
+
+nmap <Leader>g( gv<Leader><space>(
+nmap <Leader>g[ gv<Leader><space>[
+nmap <Leader>g{ gv<Leader><space>{
+nmap <Leader>g< gv<Leader><space><
+nmap <Leader>g" gv<Leader><space>"
+nmap <Leader>g' gv<Leader><space>'
+nmap <Leader>g` gv<Leader><space>`
+nmap <Leader>gp viw<Leader><space>p
 
 vnoremap <Leader><space>( `<i(`>la)hv`<l
 vnoremap <Leader><space>[ `<i[`>la]hv`<l
@@ -1075,6 +1128,15 @@ vnoremap <Leader><space>" `<i"`>la"hv`<l
 vnoremap <Leader><space>' `<i'`>la'hv`<l
 vnoremap <Leader><space>` `<i``>la`hv`<l
 vnoremap <Leader><space>p `>p`.hm>`<P`]l
+
+vmap 2<Leader><space>( <Leader><space>(gv<Leader><space>(
+vmap 2<Leader><space>[ <Leader><space>[gv<Leader><space>[
+vmap 2<Leader><space>{ <Leader><space>{gv<Leader><space>{
+vmap 2<Leader><space>< <Leader><space><gv<Leader><space><
+vmap 2<Leader><space>" <Leader><space>"gv<Leader><space>"
+vmap 2<Leader><space>' <Leader><space>'gv<Leader><space>'
+vmap 2<Leader><space>` <Leader><space>`gv<Leader><space>`
+vmap 2<Leader><space>p <Leader><space>pgv<Leader><space>p
 " }}}
 " Comments {{{
 " surrounds selected block with /*...*/
@@ -1089,7 +1151,7 @@ vnoremap <Leader>{ <ESC>mm'<A # {{{<ESC>'>A # }}}<ESC>`mmm
 vnoremap <Leader>} <ESC>mm'<A # {{{<ESC>'>A # }}}<ESC>`mmm
 " }}}
 " Show registers {{{
-nnoremap "" :registers<CR>
+nnoremap <Leader>"" :registers<CR>
 " }}}
 " Use ; as : {{{
 nnoremap ; :
@@ -1098,22 +1160,32 @@ nnoremap ; :
 nnoremap <Space> za
 vnoremap <Space> za
 " }}}
-" Copy & Pase line to system clipboard {{{
-nnoremap <Leader>y g^"+y$
-nnoremap <Leader>Y "+y$
+" Copy & Pase line to system clipboard, etc {{{
+nnoremap <Leader>y "+y$
+nnoremap <Leader>Y g^"+y$
 vnoremap <Leader>y "+y
 vnoremap <Leader>Y $"+y
 nnoremap <Leader>p "+p
 nnoremap <Leader>P "+P
 vnoremap <Leader>p "+p
 vnoremap <Leader>P "+P
+" copy to the end of line
+nmap Y y$
+" copy with c-v in gui (insert mode) # {{{
+if has('gui_running')
+  inoremap <Leader><c-v> <c-o>"+p
+  nnoremap <Leader><c-v>      "+p
+endif " }}}
+vnoremap <silent> <C-y> "+y <bar> :silent call writefile(getreg("+", 1, 1), $CLIP_FILE, "S")<CR>
+nnoremap <silent> <Leader>cy :call writefile(getreg("+", 1, 1), $CLIP_FILE, "S")<CR>
+nnoremap <silent> <Leader>co :call execute('tabedit ' . $CLIP_FILE)<CR>
 " }}}
 " Fix for linewrapping: jump to the next/prev editor line (not physical) {{{
 nnoremap <silent> j gj
 nnoremap <silent> k gk
 " }}}
 " Tig {{{
-nmap <Leader>gt :!command cd %:h && tig -- %:t<CR>
+nmap <Leader>gt :!command cd %:h && tig -- %:t<CR><CR>
 " }}}
 " Search for a file in git repo {{{
 nnoremap ?? :GFiles<CR>
@@ -1161,15 +1233,19 @@ nmap <M-Right> :bnext<CR>
 imap <c-z> <c-o>u
 " }}}
 " Searching {{{
-nmap * *N
-nmap <silent> *D *:g//d<CR>
-nmap <silent> *L *:lgrep // %<CR>:lopen<CR>
+nnoremap * *N
+nnoremap <silent> + :let @/ .= '\\|\<'.expand('<cword>').'\>'<cr>
+nnoremap <silent> *L *:lgrep // %<CR>:lopen<CR>
+nnoremap <silent> *D *N:g//d<CR>
+nnoremap <silent> DD  mz:g//d<CR>`z
+nnoremap <silent> D!D mz:g!//d<CR>`z
 " search for highlighted text {{{
 vnoremap */ y/<C-R>"<CR>
 " }}}
 " }}}
-" copy to the end of line {{{
-nmap Y y$
+" clear last search pattern {{{
+nnoremap <silent> <F12><F12> :let @/ = ""<CR>
+nnoremap <silent> //         :let @/ = ""<CR>
 " }}}
 " On Mac HOME key on external keyboard is recognized as <Help> {{{
 nmap <Help>  i
@@ -1229,10 +1305,6 @@ nmap <silent> tl :exe "tabn " . g:LastTab <CR>
 " }}}
 " Close all splits in the current window {{{
 nnoremap <C-W>q <C-w>o <bar> ZQ
-" }}}
-" clear last search pattern {{{
-nnoremap <silent> <F12><F12> :let @/ = ""<CR>
-nnoremap <silent> //         :let @/ = ""<CR>
 " }}}
 " Open a Quickfix window for the last search. {{{
 nnoremap <silent> <leader>q/ :execute 'vimgrep /'.@/.'/g %'<CR>:copen<CR>
@@ -1325,15 +1397,9 @@ nmap <F9>bd :Bld -d -r<CR>
 nmap <F9>bs :Bld -sh -r<CR>
 nmap <F9>   :Bld
 " }}}
-" execute bat file {{{
-if has('win16') || has('win32') || has('win64')
-  au BufNewFile,BufEnter *.bat nmap <F9> :w<CR>:!%<CR>
-  au BufNewFile,BufEnter *.bat nmap <S-F9> :w<CR>:!%
-endif
-" }}}
 " Open corresponding header/implementation file {{{
 nmap <Leader>e    :call TBOpenFile()<CR>
-nmap <Leader>ve   <C-W><C-V><Bar><C-W><C-W><Bar>:call TBOpenFile()<CR>
+nmap <Leader>ve   <C-W><C-V><Bar>:call TBOpenFile()<CR>
 " }}}
 " }}}
 " Menu {{{
@@ -1341,6 +1407,7 @@ nmap <Leader>ve   <C-W><C-V><Bar><C-W><C-W><Bar>:call TBOpenFile()<CR>
 nmenu My.Substitute.-SpacesAtTheEnd :%s/\v\s+$//g<CR>                                   " removes spaces at the end of lines
 nmenu My.Substitute.-FileLoc :%s/^[^ :]\+:\d\+://<CR>                                   " removes file location (e.g. grep input)
 nmenu My.Substitute.-EmptyLines :g/^\s*$/ d<CR>                                         " removes empty lines
+nmenu My.Substitute.-Hashes :%s/^\x\{5,\}\~: //                                         " removes hash of a line
 nmenu My.Substitute.-HiglightedTexts :%s///g<CR>                                        " removes highlighted text
 nmenu My.Substitute.Tab2Spaces :%s/\t/  /<CR>                                           " replaces tabs with 2 spaces: [\t]->[  ]
 nmenu My.Substitute.VIS-FirstLetterUpper :`<,`>s/\<\(\w\)\(\w*\)\>/\u\1\L\2/g<CR>       " makes First letter in a word uppercase, rest of them lowercase in a visual block
@@ -1351,12 +1418,12 @@ nmenu My.NewTab.misc_info :tabedit $SCRIPT_PATH/../info/readme.md<CR>
 nmenu My.NewTab.bash_history :tabedit $BASH_PHISTORY_FILE<CR>
   nmap <F12>lh :tabedit $BASH_PHISTORY_FILE<CR>
 " Menu - Tabedit {{{
-nmenu My.NewTab.FileDirectory :tabedit %:h<CR>
+nmenu My.NewTab.FileDirectory :tabedit %:p:h<CR>
   nmap <silent> tes :tabedit<BAR>set cursorline<Bar>ScratchBuffer<CR>
   nmap te  :tabedit 
   nmap tee :tabedit 
-  nmap ted :tabedit %:h<CR>
-  nmap ed  :edit %:h<CR>
+  nmap ted :tabedit %:p:h<CR>
+  nmap ed  :edit %:p:h<CR>
 if $GREP_LAST_PATH != "" " {{{
   nmenu My.NewTab.GrepDirectory :tabedit $GREP_LAST_PATH/<CR>
     nmap teg :tabedit $GREP_LAST_PATH<CR>
@@ -1392,6 +1459,9 @@ nmenu My.Find.Grep :lvimgrep // %<Left><Left><Left>
 " }}}
 " }}}
 " Use any other specifics {{{
+if filereadable($RUNTIME_PATH."/vimrc")
+  source $RUNTIME_PATH/vimrc
+endif
 if filereadable($HOME."/.vimrc.specific")
   source $HOME/.vimrc.specific
 endif
@@ -1400,6 +1470,9 @@ for f in split(glob($PROFILES_PATH . '/*/inits/vim/*.vim'), '\n')
 endfor
 if filereadable(".vimrc") && getcwd() != $HOME
   source .vimrc
+endif
+if filereadable("./.vim/vimrc")
+  source ./.vim/vimrc
 endif
 " }}}
 " Plugins {{{
@@ -1423,30 +1496,23 @@ let g:ycm_min_num_of_chars_for_completion = 4
 let g:ycm_key_invoke_completion = '<C-f>'
 " # }}}
 " Clang-Complete {{{
-if $MY_PROJ_PATH != ''
-  let list = split(glob($MY_PROJ_PATH . '/vim/vim/third_party/ycmd/libclang.*'))
-  if ! empty(list) | let g:clang_library_path = list[0] | endif
-  unlet list
+if $VIM_CLANG_LIB != '' && $VIM_CLANG_LIB != '-'
+  let g:clang_library_path = $VIM_CLANG_LIB
 endif
 let g:clang_user_options = '-std=c++11'
-if $VIM_CLANG_LPATH != ''
-  let g:clang_library_path = $VIM_CLANG_LPATH
-elseif $IS_MAC == 'true'
-  let g:clang_library_path = '/usr/local/Cellar/llvm/7.0.0/lib/libclang.dylib'
-endif
 let g:clang_snippets = 0
-" let g:clang_snippets_engine = 'clang_complete'
 nnoremap <silent> <Leader>cc :silent :call g:ClangUpdateQuickFix() <Bar> :copen<CR>
 " }}}
 " Jedi # {{{
-let g:jedi#completions_command = "<C-N>"
-if has("python3")
-  let g:jedi#force_py_version = "3.7"
-endif
+let g:jedi#auto_initialization = 0
+" let g:jedi#completions_command = "<C-N>"
+" if has("python3")
+"   let g:jedi#force_py_version = "3.7"
+" endif
 " }}}
 " Fugitive {{{
 nmap <Leader>gs :Gstatus<CR>
-nmap <Leader>ga :execute "Git add " . expand("%")<CR>
+nmap <Leader>ga :execute "Git add " . expand("%")<CR><CR>
 " }}}
 " Cscope {{{
 if has("cscope")
@@ -1506,6 +1572,9 @@ let g:SignaturePurgeConfirmation=1
 if $FZF_INSTALLED ==? "true"
   let g:loaded_ctrlp = 1 " Disables Ctrl-P
   set runtimepath+=$SCRIPT_PATH/bash/inits/fzf
+  if $VIM_FZF_RUNTIME_PATH != ""
+    set runtimepath+=$VIM_FZF_RUNTIME_PATH
+  endif
   nnoremap <silent> <c-p>   :Files<CR>
   nnoremap <silent> ,f      :Files<CR>
   nnoremap <silent> ,g      :GFiles<CR>
@@ -1513,9 +1582,13 @@ if $FZF_INSTALLED ==? "true"
   nnoremap          ,l      :BLines<CR>
   nnoremap          ,*      :Ag <c-r>=expand("<cword>")<cr><CR>
   nnoremap          ,ag     :Ag <c-r>=expand("<cword>")<cr><CR>
+  nnoremap <silent> ,a      :Ag<CR>
+  nnoremap <silent> <Leader><c-a>   :Ag<CR>
   nnoremap          ,bt     :BTags <c-r>=expand("<cword>")<cr><CR>
   nnoremap <silent> ,/      :History/<CR>
+  nnoremap <silent> ,:      :History:<CR>
   nnoremap <silent> ,m      :Marks<CR>
+  nnoremap <silent> ,t      :Windows<CR>
   nnoremap <silent> ,fzbu   :Buffers<CR>
   nnoremap          ,fzbl   :BLines<space>
   nnoremap <silent> ,fzhi   :History<CR>
@@ -1656,6 +1729,14 @@ noremap <silent> <c-d>  :<C-U>call smooth_scroll#down(&scroll, 14, 2)<CR>
 noremap <silent> <down> :<C-U>call smooth_scroll#down(&scroll, 14, 2)<CR>
 noremap <silent> <c-b>  :<C-U>call smooth_scroll#up(&scroll*2, 14, 4)<CR>
 noremap <silent> <c-f>  :<C-U>call smooth_scroll#down(&scroll*2, 14, 4)<CR>
+nmap    <Leader><c-f>          100<c-f>
+nmap    <Leader><Leader><c-f>  500<c-f>
+nmap    <Leader><c-b>          100<c-b>
+nmap    <Leader><Leader><c-b>  500<c-b>
+nmap    <Leader>j              100j
+nmap    <Leader><Leader>j      1000j
+nmap    <Leader>k              100k
+nmap    <Leader><Leader>k      1000k
 " }}}
 " }}}
 
