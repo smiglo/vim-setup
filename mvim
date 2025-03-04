@@ -66,9 +66,9 @@ if [[ "$1" == "@@" ]]; then
     if [[ $name == *-session || $name == vimS || $3 == '-S' ]]; then
       ret_val=
       if [[ -e "./.vim" ]]; then
-        ret_val="$(getFileList --pwd "./.vim" "*.vim" | sed -e 's/\(Session-\|\.vim\)//g')"
+        ret_val="$(get-file-list --pwd "./.vim" "*.vim" | sed -e 's/\(Session-\|\.vim\)//g')"
       else
-        ret_val="$(getFileList "Session*.vim" | sed -e 's/\(Session-\|\.vim\)//g')"
+        ret_val="$(get-file-list "Session*.vim" | sed -e 's/\(Session-\|\.vim\)//g')"
       fi
       [[ -e 'Session.vim' && -L 'Session.vim' && " $ret_val " == *\ Session\ * ]] && ret_val="${ret_val/Session}"
     elif $use_gui; then
@@ -162,7 +162,7 @@ vimdiffgit)   opts+=" -c ':map qq :quitall!<CR>'";;&
     fi # }}}
     # Newest session # {{{
     if [[ -z $sessionFile ]]; then
-      sessionFile="$(getFileList -t -1 "${d%-}*.vim")"
+      sessionFile="$(get-file-list -t -1 "${d%-}*.vim")"
     fi # }}}
     # }}}
   else # {{{
@@ -204,7 +204,7 @@ if $parsing_parameters; then # {{{
     [[ $1 == '-' ]] && shift
   fi # }}}
   if ! $stdin && [[ $name == 'vim' && $@ == "--Fast" ]]; then # {{{
-    optsEnd+="-c 'source $HOME/.vim/autoload/fugitive.vim' -c :Files"
+    optsEnd+=" -c :Files"
   fi # }}}
   if [[ ! -z "$1" ]]; then # {{{
     fileLast= addEval=false

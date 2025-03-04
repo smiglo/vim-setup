@@ -73,11 +73,15 @@ set statusline+=%*\                                                 " Right side
 set noruler
 set novisualbell
 set noerrorbells  " quiet
+set belloff=all
 set backspace=indent,eol,start " allow backspacing over everything in insert mode
 set cpo+=>        " add line break when appending into a register
 set tw=0          " textwidth
 set timeout timeoutlen=750 ttimeoutlen=200   " ESC timeout
-set clipboard=unnamed "yanks go to system clipboard
+set clipboard=unnamed " if unnamedplus is chosen, then all deletes go into system clipboard what is unwanted
+if $VIM_CLIPBOARD != ""
+  set clipboard=$VIM_CLIPBOARD
+endif
 set pastetoggle=<f5> " do I need this if I know "+ register?
 set switchbuf=useopen,usetab " don't duplicate an existing open buffer
 set matchpairs+=<:> " Jump over '<' '>' blocks using TAB (and % by default)
@@ -293,14 +297,14 @@ if has("autocmd")
   autocmd Syntax sh
         \ syn match foldMarkerB /{\{3\}\d*/ conceal cchar=► containedin=ALL |
         \ syn match foldMarkerE /}\{3\}\d*/ conceal cchar=● containedin=ALL |
-        \ syn keyword shMyKeywordE  echo printf                           containedin=ALLBUT,shComment,shSingleQuote,shDoubleQuote |
-        \ syn keyword shMyKeywordE  cl clf echoc printfc                  containedin=ALLBUT,shComment,shSingleQuote,shDoubleQuote |
-        \ syn keyword shMyKeyword   echor echorv echorc echore echorm     containedin=ALLBUT,shComment,shSingleQuote,shDoubleQuote |
-        \ syn keyword shMyKeyword2  FAT ERR WRN INF DBG TRC dbgF dbg dbgC containedin=ALLBUT,shComment,shSingleQuote,shDoubleQuote |
-        \ syn keyword shMyKeyword   die                                   containedin=ALLBUT,shComment,shSingleQuote,shDoubleQuote |
-        \ syn keyword shMyKeyword2  getTS                                 containedin=ALLBUT,shComment,shSingleQuote,shDoubleQuote |
-        \ syn keyword shMyKeyword2  timeMeasure                           containedin=ALLBUT,shComment,shSingleQuote,shDoubleQuote |
-        \ syn keyword shMyKeywordB  true false                            containedin=ALLBUT,shComment |
+        \ syn keyword shMyKeywordE  echo printf                               containedin=ALLBUT,shComment,shSingleQuote,shDoubleQuote |
+        \ syn keyword shMyKeywordE  cl clf echoc printfc                      containedin=ALLBUT,shComment,shSingleQuote,shDoubleQuote |
+        \ syn keyword shMyKeyword   echor echorv echorc echore echorm echormf containedin=ALLBUT,shComment,shSingleQuote,shDoubleQuote |
+        \ syn keyword shMyKeyword2  FAT ERR WRN INF DBG TRC dbgF dbg dbgC     containedin=ALLBUT,shComment,shSingleQuote,shDoubleQuote |
+        \ syn keyword shMyKeyword   die                                       containedin=ALLBUT,shComment,shSingleQuote,shDoubleQuote |
+        \ syn keyword shMyKeyword2  getTS                                     containedin=ALLBUT,shComment,shSingleQuote,shDoubleQuote |
+        \ syn keyword shMyKeyword2  timeMeasure                               containedin=ALLBUT,shComment,shSingleQuote,shDoubleQuote |
+        \ syn keyword shMyKeywordB  true false                                containedin=ALLBUT,shComment |
         \ syn match   shMyGlobVar   /[012&]\?\(>\{0,2\}\|<\?\)\/dev\/\%\(stdout\|stderr\|null\|tty\)/     containedin=ALLBUT,shComment |
         \ syn match   shMyGlobVar   /[12&]\?>>\?&[12]/                                                    containedin=ALLBUT,shComment |
         \ syn match   shMySet       /set \+[-+][xv]\+/                                                    containedin=ALLBUT,shComment |
@@ -892,8 +896,13 @@ function! TBTmuxSplit(...) " {{{
   if has_key(l:params, 'dir') | let fdir = l:params['dir'] | endif
   if has_key(l:params, 'p')   | let p    = l:params['p']   | endif
   if has_key(l:params, 'par') | let epar = l:params['par'] | endif
+  if $TMUX_VERSION >= 34
+    let p = '-l ' . l:p . '\%'
+  else
+    let p = '-p' . l:p
+  endif
   if l:wnd == 0
-    execute 'silent !tmux split-window ' . l:dir . ' -p ' . l:p . ' -c "' . l:fdir . '"' . ' ' . l:epar
+    execute 'silent !tmux split-window ' . l:dir . ' ' . l:p . ' -c "' . l:fdir . '"' . ' ' . l:epar
   else
     execute 'silent !tmux new-window -a -c "' . l:fdir . '"' . ' ' . l:epar
   endif
@@ -926,14 +935,14 @@ function! TBSendToPane(...) " {{{
   if l:t !~ ".*\..*" | let t .= ".1" | endif
   let f = expand('%:p')
   if filereadable(l:f)
-    silent execute '!$ALIASES fzf_exe -c pane --pane ' . l:t . ' -f ' . shellescape(l:f)
+    silent execute '!$ALIASES_SCRIPTS/fzf-tools/fzf-exe.sh -c pane --pane ' . l:t . ' -f ' . shellescape(l:f)
     execute ':redraw!'
   else
     echom "Not existing file [" . l:f . "]"
   endif
 endfunction " }}}
 command! -nargs=? -complete=customlist,TBSendToPaneCompl TBSendToPane call TBSendToPane(<q-args>)
-nnoremap     <F2>  <C-w>gf
+nnoremap     <F2>  <C-w>gF
 nnoremap <silent>  <Leader><F2> :<C-u>TBSendToPane<CR>
 nnoremap <F12><F2> :<C-u>TBSendToPane 
 " }}}
@@ -1029,6 +1038,27 @@ nnoremap <expr> <Leader>\tt TBInsertLog("TT")
 nnoremap <expr> <Leader>\td TBInsertLog("DBG")
 nnoremap <expr> <Leader>\tD TBInsertLog("DUPL")
 " }}}
+" Clipboard helpers {{{
+function! ClipStore(reg)
+  if $CLIP_FILE == "" | return | endif
+  call writefile(getreg(a:reg, 1, 1), $CLIP_FILE . ".vim", "s")
+  let out = system("$ALIASES xclip --put $CLIP_FILE.vim")
+endfunction
+function! ClipPaste(cmd, clip)
+  if has('gui_running') || $TMUX == ""
+    exec "normal \"+" . a:cmd
+    return
+  endif
+  let y_store = @y
+  if a:clip == "-"
+    let @y = system("tmux show-buffer")
+  else
+    let @y = system("tmux show-buffer -b " . a:clip)
+  endif
+  exec "normal \"y" . a:cmd
+  let @y = l:y_store
+endfunction
+" }}}
 " Oth {{{
 command! -nargs=1 VG lvimgrep /<args>/j %:p:~:. <Bar> lopen
 command! FPdf execute("hardcopy >$TMP_MEM_PATH/%:t:r.ps | !ps2pdf $TMP_MEM_PATH/%:t:r.ps %:p:r.pdf")
@@ -1049,6 +1079,7 @@ nnoremap          <F12>h        :Map<CR>
 nnoremap          <Leader>ttt   :terminal<CR>
 nnoremap <silent> <F6>          :redraw!<CR>
 nnoremap <silent> <F12>s        :exe "tabn " . g:LastTab <BAR> let this_tab = bufname('%') <BAR> exe "tabn " . g:LastTab <BAR> exe 'vsplit ' . this_tab <BAR> exe "tabclose " . g:LastTab <BAR> unlet this_tab<CR>
+nnoremap <silent> <leader>\cd   :cd $PWD<CR>
 " <c-i> is the same as <tab> and tab is changed to "%", thus <c-l> map the
 " behaviour of <c-i>, i.e. jump to newer cursor position in jump list
 noremap           <c-l>   <c-i>
@@ -1074,9 +1105,7 @@ vnoremap <right> <nop>
 " }}}
 " Quit vim {{{
 nnoremap <silent> ZZZ    :xa!<CR>
-nnoremap <silent> qq<CR> :xa!<CR>
 nnoremap <silent> ZQQ    :qa!<CR>
-nnoremap <silent> QQ<CR> :qa!<CR>
 " }}}
 " Execute last macro {{{
 nnoremap Q @@
@@ -1161,25 +1190,38 @@ nnoremap <Space> za
 vnoremap <Space> za
 " }}}
 " Copy & Pase line to system clipboard, etc {{{
-nnoremap <Leader>y "+y$
-nnoremap <Leader>Y g^"+y$
-vnoremap <Leader>y "+y
-vnoremap <Leader>Y $"+y
-nnoremap <Leader>p "+p
-nnoremap <Leader>P "+P
-vnoremap <Leader>p "+p
-vnoremap <Leader>P "+P
-" copy to the end of line
+nnoremap <silent> <Leader>y "+y$<bar>:call ClipStore("+")<CR>
+nnoremap <silent> <Leader>Y g^"+y$<bar>:call ClipStore("+")<CR>
+vnoremap <silent> <Leader>y "+y<bar>:call ClipStore("+")<CR>
+vnoremap <silent> <Leader>Y $"+y<bar>:call ClipStore("+")<CR>
+if $IS_DOCKER == "false"
+  nnoremap <Leader>p "+p
+  nnoremap <Leader>P "+P
+  vnoremap <Leader>p "+p
+  vnoremap <Leader>P "+P
+else
+  nnoremap <silent> <Leader>p :call ClipPaste("p", "-")<CR>
+  nnoremap <silent> <Leader>P :call ClipPaste("P", "-")<CR>
+  vnoremap <silent> <Leader>p :call ClipPaste("p", "-")<CR>
+  vnoremap <silent> <Leader>P :call ClipPaste("P", "-")<CR>
+endif
+nnoremap <silent> <Leader><Leader>p :call ClipPaste("p", "clip")<CR>
+nnoremap <silent> <Leader><Leader>P :call ClipPaste("P", "clip")<CR>
+vnoremap <silent> <Leader><Leader>p :call ClipPaste("p", "clip")<CR>
+vnoremap <silent> <Leader><Leader>P :call ClipPaste("P", "clip")<CR>
+nnoremap <silent> <Leader><C-y> :call ClipStore("\"")<CR>
+vnoremap <silent> <C-y> "+y<bar>:call ClipStore("+")<CR>
 nmap Y y$
-" copy with c-v in gui (insert mode) # {{{
+" }}}
+" Clip file, open {{{
+if $CLIP_FILE != ''
+  nnoremap <silent> <Leader>co :call execute('tabedit ' . $CLIP_FILE)<CR>
+endif " }}}
+" copy with c-v in gui (insert mode) {{{
 if has('gui_running')
   inoremap <Leader><c-v> <c-o>"+p
   nnoremap <Leader><c-v>      "+p
 endif " }}}
-vnoremap <silent> <C-y> "+y <bar> :silent call writefile(getreg("+", 1, 1), $CLIP_FILE, "S")<CR>
-nnoremap <silent> <Leader>cy :call writefile(getreg("+", 1, 1), $CLIP_FILE, "S")<CR>
-nnoremap <silent> <Leader>co :call execute('tabedit ' . $CLIP_FILE)<CR>
-" }}}
 " Fix for linewrapping: jump to the next/prev editor line (not physical) {{{
 nnoremap <silent> j gj
 nnoremap <silent> k gk
@@ -1423,7 +1465,7 @@ nmenu My.NewTab.FileDirectory :tabedit %:p:h<CR>
   nmap te  :tabedit 
   nmap tee :tabedit 
   nmap ted :tabedit %:p:h<CR>
-  nmap ed  :edit %:p:h<CR>
+  nmap <Leader>ed  :edit %:p:h<CR>
 if $GREP_LAST_PATH != "" " {{{
   nmenu My.NewTab.GrepDirectory :tabedit $GREP_LAST_PATH/<CR>
     nmap teg :tabedit $GREP_LAST_PATH<CR>
@@ -1440,9 +1482,9 @@ else
   nmap teJ <NOP>
   nmap tej <NOP>
 endif " }}}
-nmap ten :execute("tabedit " . system("$ALIASES note --show-note-file"))<CR>
-nmap teN :execute("tabedit " . system("$ALIASES note --note-tmux --show-note-file"))<CR>
-nmap tegn :execute("tabedit " . system("$ALIASES note --note-gdrive --show-note-file"))<CR>
+nmap ten :execute("tabedit " . system("$ALIASES_SCRIPTS/note.sh --show-note-file"))<CR>
+nmap teN :execute("tabedit " . system("$ALIASES_SCRIPTS/note.sh --note-tmux --show-note-file"))<CR>
+nmap tegn :execute("tabedit " . system("$ALIASES_SCRIPTS/note.sh --note-gdrive --show-note-file"))<CR>
 " }}}
 " Menu - Explorer {{{
 nmenu My.Explorer.NewTab :Texplore **/*
@@ -1571,29 +1613,34 @@ let g:SignaturePurgeConfirmation=1
 " FZF {{{
 if $FZF_INSTALLED ==? "true"
   let g:loaded_ctrlp = 1 " Disables Ctrl-P
-  set runtimepath+=$SCRIPT_PATH/bash/inits/fzf
+  if $FZF_PATH != "" && $FZF_PATH != $SCRIPT_PATH."/bash/inits/fzf/bin"
+    let &runtimepath.=','.fnamemodify($FZF_PATH, ":h")
+  endif
   if $VIM_FZF_RUNTIME_PATH != ""
     set runtimepath+=$VIM_FZF_RUNTIME_PATH
   endif
-  nnoremap <silent> <c-p>   :Files<CR>
-  nnoremap <silent> ,f      :Files<CR>
-  nnoremap <silent> ,g      :GFiles<CR>
-  nnoremap          ,L      :Lines<CR>
-  nnoremap          ,l      :BLines<CR>
-  nnoremap          ,*      :Ag <c-r>=expand("<cword>")<cr><CR>
-  nnoremap          ,ag     :Ag <c-r>=expand("<cword>")<cr><CR>
-  nnoremap <silent> ,a      :Ag<CR>
+  set runtimepath+=$SCRIPT_PATH/bash/inits/fzf
+  nnoremap <silent> <c-p>           :Files<CR>
+  nnoremap <silent> ,f              :Files<CR>
+  nnoremap <silent> ,g              :GFiles<CR>
+  nnoremap          ,L              :Lines<CR>
+  nnoremap          ,l              :BLines<CR>
+  nnoremap          ,*              :Ag <c-r>=expand("<cword>")<cr><CR>
+  nnoremap          ,ag             :Ag <c-r>=expand("<cword>")<cr><CR>
+  nnoremap <silent> ,a              :Ag<CR>
   nnoremap <silent> <Leader><c-a>   :Ag<CR>
-  nnoremap          ,bt     :BTags <c-r>=expand("<cword>")<cr><CR>
-  nnoremap <silent> ,/      :History/<CR>
-  nnoremap <silent> ,:      :History:<CR>
-  nnoremap <silent> ,m      :Marks<CR>
-  nnoremap <silent> ,t      :Windows<CR>
-  nnoremap <silent> ,fzbu   :Buffers<CR>
-  nnoremap          ,fzbl   :BLines<space>
-  nnoremap <silent> ,fzhi   :History<CR>
-  nnoremap <silent> ,fzh:   :History:<CR>
-  nnoremap          ,fzt    :Tags<space>
+  nnoremap          ,,bt            :BTags <c-r>=expand("<cword>")<cr><CR>
+  nnoremap <silent> ,h              :History<CR>
+  nnoremap <silent> ,/              :History/<CR>
+  nnoremap <silent> ,:              :History:<CR>
+  nnoremap <silent> ,;              :History:<CR>
+  nnoremap <silent> ,m              :Marks<CR>
+  nnoremap <silent> ,M              :Maps<CR>
+  nnoremap <silent> <Leader>t       :Windows<CR>
+  nnoremap <silent> ,t              :Windows<CR>
+  nnoremap <silent> ,w              :Buffers<CR>
+  nnoremap <silent> ,b              :Windows<CR>
+  nnoremap          ,,ta            :Tags<space>
   let g:fzf_colors = {
       \ 'hl':      ['fg', 'Search'],
       \ 'fg':      ['fg', 'Normal', 'CursorColumn', 'Normal'],
@@ -1738,5 +1785,8 @@ nmap    <Leader><Leader>j      1000j
 nmap    <Leader>k              100k
 nmap    <Leader><Leader>k      1000k
 " }}}
+" }}}
+" Akward issue with usage of fzf within vim in some cases {{{
+source $HOME/.vim/autoload/fugitive.vim
 " }}}
 

@@ -8,6 +8,7 @@ syn match logKeyword       /\<INFO:\|\<INFO\>\|\<ERROR\>\|\<ERR\>\|\<WARNING\>\|
 syn match logTime          /\<\%([1-2]\d\{3\}\)\%(0[1-9]\|1[0-2]\)\%(0[1-9]\|[1-2]\d\|3[0-1]\)\%(-\%([0-1]\d\|2[0-3]\)\%([0-5]\d\)\{2\}\)\?\>/
 syn match logTime          /\<\(Jan\|Feb\|Mar\|Apr\|May\|Jun\|Jul\|Aug\|Sep\|Oct\|Nov\|Dec\)\>\s+\d\+ \d\d:\d\d:\d\d/
 syn match logTime          /\[\?\<\d\{4\}-\d\d-\d\d\>\%( \d\d:\d\d:\d\d\)\?\]\?/
+syn match logTime          /\s*\<\d\d:\d\d\(:\d\d\(\.\d\+\)\?\)\?\>/
 syn match logTime          /\.\d\{6,\}\>/ conceal cchar=.
 syn match logTime          /\[\s*\d\+\.\d\{6\}\]/
 
