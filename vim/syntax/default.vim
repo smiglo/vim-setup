@@ -12,8 +12,8 @@ syn match logTime          /\s*\<\d\d:\d\d\(:\d\d\(\.\d\+\)\?\)\?\>/
 syn match logTime          /\.\d\{6,\}\>/ conceal cchar=.
 syn match logTime          /\[\s*\d\+\.\d\{6\}\]/
 
-syn match logIssueLine     /\(\[[A-Z][A-Z0-9]\{1,\}-\d\{3,\}\]\|\<[A-Z][A-Z0-9]\{2,\}-\d\{3,\}\>\)\( \?(https\?:\/\/[^)]*)\)\?\(:\? [^\.]*\)$\?/ contains=logIssue,logIssueLink,logIssueDescrF,logIssueAuthor
-syn match logIssue         /\(\[[A-Z][A-Z0-9]\{1,\}-\d\{3,\}\]\|\<[A-Z][A-Z0-9]\{2,\}-\d\{3,\}\>\)/           contained
+syn match logIssueLine     /\(\[[A-Z][A-Z0-9]\{1,\}-\d\{1,\}\]\|\<[A-Z][A-Z0-9]\{1,\}-\d\{1,\}\>\)\( \?(https\?:\/\/[^)]*)\)\?\(:\? [^\.]*\)$\?/ contains=logIssue,logIssueLink,logIssueDescrF,logIssueAuthor
+syn match logIssue         /\(\[[A-Z][A-Z0-9]\{1,\}-\d\{1,\}\]\|\<[A-Z][A-Z0-9]\{1,\}-\d\{1,\}\>\)/           contained
 syn match logIssueLink     / \?(https\?:\/\/[^)]*)/                                                           contained conceal
 syn match logIssueDescrF   /:\? [^.]*$/                                                                       contained contains=logIssueDescr,logIssueAuthor
 syn match logIssueDescr    /[^:][^ ][^.]*/                                                                    contained contains=logIssueAuthor

@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # vim: fdl=0 ft=sh
 
+source $ALIASES_D/0.essentials
+import-module echorm echor
 # Functions # {{{
 checkRemoteVim() { # {{{
   [[ -z $1 ]] && return 1
@@ -41,6 +43,10 @@ check_session_file=false
 opts=
 optsEnd=
 diff_mode=false
+diff_mode_ext=
+show_diff=false
+git_merge_mode=false
+stdinRedit=
 # }}}
 # Gui mode ? # {{{
 use_gui=${VIM_USE_GUI:-false}
@@ -61,19 +67,27 @@ if [[ "$1" == "@@" ]]; then
     ret_val+=" $(command cd $VIM_SESSIONS_PATH 2>/dev/null && ls *.vim)"
     ret_val+=" $(echo "$ret_val" | sed 's|\(\.as\)\?\.vim||')";; # }}}
   *) # {{{
-    ret_val="@@-f --scratch --fast --Fast --fast-save --fast-quit --edit -1l -gg -ll -G -cl --type --which --session --no-session --link"
+    ret_val+=" @@-f --scratch --fast --Fast --fast-save --fast-quit "
+    ret_val+=" --edit -1l -gg -ll -G -cl"
+    ret_val+=" --type --which"
+    ret_val+=" --session --no-session"
+    ret_val+=" --link -f --files +files"
+    ret_val+=" --diff --show-diff"
     [[ ! -z $HISTFILE ]] && ret_val+=" -h"
-    if [[ $name == *-session || $name == vimS || $3 == '-S' ]]; then
+    if [[ $name == *-session || $name == vimS || $3 == '-S' ]]; then # {{{
       ret_val=
       if [[ -e "./.vim" ]]; then
         ret_val="$(get-file-list --pwd "./.vim" "*.vim" | sed -e 's/\(Session-\|\.vim\)//g')"
       else
         ret_val="$(get-file-list "Session*.vim" | sed -e 's/\(Session-\|\.vim\)//g')"
       fi
-      [[ -e 'Session.vim' && -L 'Session.vim' && " $ret_val " == *\ Session\ * ]] && ret_val="${ret_val/Session}"
-    elif $use_gui; then
+      [[ -e 'Session.vim' && -L 'Session.vim' && " $ret_val " == *\ Session\ * ]] && ret_val="${ret_val/Session}" # }}}
+    elif [[ $name == *diff* ]]; then # {{{
+      ret_val+=".h .c .cpp" # }}}
+    elif $use_gui; then # {{{
       [[ $2 == 1 ]] && ret_val="$($binary --serverlist)"
-    fi ;; # }}}
+    fi # }}}
+    ;; # }}}
   esac
   echo "$ret_val"
   exit 0
@@ -130,8 +144,8 @@ fi # }}}
 # Options for each of vim modes # {{{
 case "$name" in
 _*|*vimdiff*) open_file_method='';;&
-vimdiffgit)   opts+=" -c ':map qq :quitall!<CR>'";;&
-*vimdiff*)    diff_mode=true; opts+=" -dO";;
+vimdiffgit)   opts+=" -c FastVim";;&
+*vimdiff*)    diff_mode=true;;
 *view)        opts+=" -R";;
 *ex)          opts+=" -e";;
 *-session | vimS) # {{{
@@ -190,24 +204,37 @@ vimdiffgit)   opts+=" -c ':map qq :quitall!<CR>'";;&
   opts+=" -S \"$sessionFile\""
   ;; # }}}
 esac # }}}
+[[ $@ =~ REMOTE && $@ =~ LOCAL && $@ =~ BASE ]] && git_merge_mode=true && open_file_method=
 # Parse arguments # {{{
 [[ "$name" == 'vi' ]] && check_session_file=false
-files=
+declare -a files
 if $parsing_parameters; then # {{{
   [[ ! -z $VIM_ENV ]] && set -- $VIM_ENV "$@"
   stdin=false
   if [[ ! -t 0 ]]; then # {{{
-    stdin=true
-    if [[ " $@ " != *\ -\ * ]]; then
-      opts+=" -"
+    captureFiles() { # {{{
+      local i=
+      for i; do
+        case "$1" in
+        "--files"     | "-f" | \
+        "--show-diff" | "--diff" )
+          return 0;;
+        esac
+      done
+      return 1
+    } # }}}
+    if $diff_mode || captureFiles $@; then
+      files+=( $(cat -) )
+      stdinRedit="</dev/tty"
+    else
+      stdin=true
+      [[ " $@ " == *\ -\ * ]] || opts+=" -"
+      [[ " $@ " == *\ --Fast\ * ]] || opts+=" -c FastVim"
     fi
     [[ $1 == '-' ]] && shift
   fi # }}}
-  if ! $stdin && [[ $name == 'vim' && $@ == "--Fast" ]]; then # {{{
-    optsEnd+=" -c :Files"
-  fi # }}}
   if [[ ! -z "$1" ]]; then # {{{
-    fileLast= addEval=false
+    addEval=false
     declare -a evalPred=
     while [[ ! -z "$1" ]]; do # {{{
       case $1 in # {{{
@@ -215,15 +242,20 @@ if $parsing_parameters; then # {{{
         check_session_file=false;; # }}}
       --session) # {{{
         check_session_file=true;; # }}}
-      -f1)    files+=" $2/$fileLast"; shift;;
+      -f1)    files+=( "$2/${files[-1]}" ); shift;;
       -S)     opts+=" $1 $2"; shift;;
       -cl)    opts+=" -c 'set cursorline'";;
       -1l | -gg) opts+=" -c 'normal gg'";;
       -ll | -G ) opts+=" -c 'normal G'";;
+      --show-diff | --diff)
+        diff_mode=true
+        [[ $1 == '--show-diff' ]] && show_diff=true;;
       --edit) opts+=" -c startinsert";;
+      +files) ! $stdin && [[ -z $2 ]] && optsEnd+=" -c :Files";;
       --Fast) opts+=" -c FastVim";;
       --fast-quit) opts+=" -c FastBuffer";;
       --fast-save) opts+=" -c FastVimSave";;
+      -f | --files) ;; # already consumed
       --fast) # {{{
         if ${VIM_USE_FAST_SAVE:-false}; then
           opts+=" -c FastVimSave"
@@ -235,8 +267,8 @@ if $parsing_parameters; then # {{{
         [[ $1 == '-' ]] && opts+=" $1";; # }}}
       --which) # {{{
         shift
-        files=$(which $1 2>/dev/null)
-        [[ -z $files || ! -e $files ]] && echo "File not found" >/dev/stderr && exit 1;; # }}}
+        files=( "$(which $1 2>/dev/null)" )
+        [[ -z ${files[0]} || ! -e ${files[0]} ]] && echo "File not found" >/dev/stderr && exit 1;; # }}}
       --type) # {{{
         shift
         $IS_MAC && ! declare -F | command grep -q " $1\$" && source $ALIASES --force
@@ -281,13 +313,27 @@ if $parsing_parameters; then # {{{
         [[ -z $list ]] && exit 0
         while read i; do
           echorm "Command from history as a file: '$i'"
-          files+=" <($i)"
+          files+="( <($i) )"
         done < <(echo "$list")
         ;; # }}}
-      -*)    opts+=" $1";;
-      ++*)   opts+=" +\"execute 'normal! ${1#++}'\"";;
-      +*)    opts+=" \"$1\"";;
-      *)     files+=" \"$1\""; fileLast="$1";;
+      -*) # {{{
+        arg="$1"
+        if $diff_mode; then
+          case $arg in
+          -e | --ext) shift; diff_mode_ext="${1#.}"; arg=;;
+          esac
+        fi
+        [[ ! -z $arg ]] && opts+=" $arg";; # }}}
+      ++*) opts+=" +\"execute 'normal! ${1#++}'\"";;
+      +*)  opts+=" \"$1\"";;
+      *) # {{{
+        arg="$1"
+        if $diff_mode; then
+          case $arg in
+          .h | .c | .cpp) diff_mode_ext="${arg#.}"; arg=;;
+          esac
+        fi
+        [[ ! -z $arg ]] && files+=( "$1" );; # }}}
       esac # }}}
       shift
     done # }}}
@@ -295,7 +341,8 @@ if $parsing_parameters; then # {{{
       set -- "${evalPred[@]}" "$@"
       if ! $stdin; then # {{{
         opts+=" $open_file_method"
-        for f in $files; do
+        for f in ${!files[*]}; do
+          f=${files[$f]}
           opts+=" <(cat $f"
           for a; do
             [[ ! -z $a ]] && opts+=" | $a"
@@ -312,7 +359,7 @@ if $parsing_parameters; then # {{{
       files=
       shift $#
     fi # }}}
-    [[ ! -z "$files" ]] && opts+=" $open_file_method"
+    [[ ! -z ${files[*]} ]] && opts+=" $open_file_method"
   fi # }}}
   if $check_session_file; then # {{{
     if [[ $opts != *-S\ * ]]; then
@@ -338,14 +385,25 @@ if $parsing_parameters; then # {{{
   fi # }}}
 # }}}
 else # {{{
-  files="$@"
+  files=( "$@" )
 fi # }}}
 # }}}
 # Launch # {{{
-if $diff_mode && [[ ! -z $files ]]; then
-  eval command diff -q $files >/dev/null 2>&1 && echor "Files are the same" && exit 0
+if $diff_mode; then
+  if [[ ! -z $diff_mode_ext ]]; then
+    declare -a fn=()
+    for f in ${!files[*]}; do fn+=( "${files[$f]%.*}.$diff_mode_ext" ); done
+    files=( "${fn[@]}" )
+  fi
+  if [[ ! -z ${files[*]} ]] && ! $show_diff; then
+    eval command diff -q ${files[*]@Q} >/dev/null 2>&1 && echor "Files are the same" && exit 0
+  fi
+  opts+=" -dO -c FastVim"
 fi
-echorm "$binary $opts $optsEnd $files"
-eval "$binary" $opts $optsEnd $files
+if $git_merge_mode; then
+  opts="${opts%\"*} | set cursorline | let @/='"'^\\%(\\([<\\|>]\\)\\1\\{6\\} \\)\\|^\\%(=\\{7\\}\\)$'"' \""
+fi
+echorm "$binary $opts $optsEnd ${files[*]@Q} $stdinRedit"
+eval "$binary" $opts $optsEnd ${files[*]@Q} $stdinRedit
 # }}}
 

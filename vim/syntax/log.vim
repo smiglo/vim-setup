@@ -38,15 +38,22 @@ syn match logTmp         /(\d\{3,\})/                                           
 syn match logTmp         /\d\{4\}\/\d\d\/\d\d \d\d:\d\d:\d\d /                                                                 conceal cchar=∙
 syn match logJira        /{noformat\%( .*\)\?}\|^# NF/                                                                         conceal cchar=␌
 
-syn match logDebug       /\[\?\<TRACE\>\]\?:\?/     skipwhite conceal cchar=T
-syn match logDebug       /\[\?\<DEBUG\>\]\?:\?/     skipwhite conceal cchar=D
-syn match logNotice      /\[\?\<NOTICE\>\]\?:\?/    skipwhite conceal cchar=N
-syn match logInfo        /\[\?\<INFO\>\]\?:\?/      skipwhite conceal cchar=I
-syn match logWarning     /\[\?\<WARN\>\]\?:\?/      skipwhite conceal cchar=W
-syn match logWarning     /\[\?\<WARNING\>\]\?:\?/   skipwhite conceal cchar=W
-syn match logError       /\[\?\<ERROR\>\]\?:\?/     skipwhite conceal cchar=E
-syn match logFatal       /\[\?\<FATAL\>\]\?:\?/     skipwhite conceal cchar=F
-syn match logFatal       /\[\?\<MIL\>\]\?:\?/       skipwhite conceal cchar=M
+syn match logDebug       /\[TRACE\]\|\<TRACE\>:\?/       skipwhite conceal cchar=T
+syn match logDebug       /\[DEBUG\]\|\<DEBUG\>:\?/       skipwhite conceal cchar=D
+syn match logNotice      /\[NOTICE\]\|\<NOTICE\>:\?/     skipwhite conceal cchar=N
+syn match logInfo        /\[INFO\]\|\<INFO\>:\?/         skipwhite conceal cchar=I
+syn match logWarning     /\[WARN\]\|\<WARN\>:\?/         skipwhite conceal cchar=W
+syn match logWarning     /\[WARNING\]\|\<WARNING\>:\?/   skipwhite conceal cchar=W
+syn match logError       /\[ERROR\]\|\<ERROR\>:\?/       skipwhite conceal cchar=E
+syn match logFatal       /\[FATAL\]\|\<FATAL\>:\?/       skipwhite conceal cchar=F
+
+syn match logDebug       /\[TRC\]\|\<TRC\>:\?/       skipwhite conceal cchar=T
+syn match logDebug       /\[DBG\]\|\<DBG\>:\?/       skipwhite conceal cchar=D
+syn match logNotice      /\[NTC\]\|\<NTC\>:\?/       skipwhite conceal cchar=N
+syn match logInfo        /\[NFO\]\|\<NFO:\>\?/       skipwhite conceal cchar=I
+syn match logWarning     /\[WRN\]\|\<WRN\>:\?/       skipwhite conceal cchar=W
+syn match logError       /\[ERR\]\|\<ERR\>:\?/       skipwhite conceal cchar=E
+syn match logFatal       /\[FAT\]\|\<FAT\>:\?/       skipwhite conceal cchar=F
 
 syn keyword logKeyword2  error
 syn keyword logKeyword   warning

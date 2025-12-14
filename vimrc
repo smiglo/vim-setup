@@ -80,7 +80,7 @@ set tw=0          " textwidth
 set timeout timeoutlen=750 ttimeoutlen=200   " ESC timeout
 set clipboard=unnamed " if unnamedplus is chosen, then all deletes go into system clipboard what is unwanted
 if $VIM_CLIPBOARD != ""
-  set clipboard=$VIM_CLIPBOARD
+  let &clipboard = $VIM_CLIPBOARD
 endif
 set pastetoggle=<f5> " do I need this if I know "+ register?
 set switchbuf=useopen,usetab " don't duplicate an existing open buffer
@@ -173,7 +173,7 @@ endfunction
 set foldmethod=marker
 set foldmarker=#\ {{{,#\ }}}
 autocmd FileType python       setlocal foldmethod=indent
-autocmd FileType lua,go,c,cpp setlocal foldmethod=syntax
+autocmd FileType lua,go,c,cpp setlocal foldmethod=syntax foldlevel=4
 autocmd FileType arduino      setlocal foldmethod=syntax
 autocmd FileType vim          setlocal foldmarker={{{,}}}
 
@@ -206,13 +206,14 @@ nnoremap <silent># #zz
 nnoremap <silent>g* g*zz
 " }}}
 " Tabs {{{
-set shiftwidth=0
-set tabstop=2
+set shiftwidth=2
+set tabstop=4
 set softtabstop=2
 set smarttab
 set expandtab  " replaces tabs with spaces
 set shiftround " use multiple of shiftwidth when indenting with < >
-set notitle
+set title
+set titlestring=vim:\ %{fnamemodify(getcwd(),':t')}
 " }}}
 " Indents {{{
 set autoindent    " always set autoindenting on
@@ -224,6 +225,7 @@ set ignorecase
 set smartcase    " smart search
 set incsearch    " do incremental searching
 set gdefault     " replace globally by default
+set wildignorecase " ignore case of file completion
 " Switch syntax highlighting on, when the terminal has colors
 " Also switch on highlighting the last used search pattern.
 if &t_Co > 2 || has("gui_running")
@@ -301,11 +303,11 @@ if has("autocmd")
         \ syn keyword shMyKeywordE  cl clf echoc printfc                      containedin=ALLBUT,shComment,shSingleQuote,shDoubleQuote |
         \ syn keyword shMyKeyword   echor echorv echorc echore echorm echormf containedin=ALLBUT,shComment,shSingleQuote,shDoubleQuote |
         \ syn keyword shMyKeyword2  FAT ERR WRN INF DBG TRC dbgF dbg dbgC     containedin=ALLBUT,shComment,shSingleQuote,shDoubleQuote |
-        \ syn keyword shMyKeyword   die                                       containedin=ALLBUT,shComment,shSingleQuote,shDoubleQuote |
-        \ syn keyword shMyKeyword2  getTS                                     containedin=ALLBUT,shComment,shSingleQuote,shDoubleQuote |
-        \ syn keyword shMyKeyword2  timeMeasure                               containedin=ALLBUT,shComment,shSingleQuote,shDoubleQuote |
+        \ syn keyword shMyKeyword   echoe die                                 containedin=ALLBUT,shComment,shSingleQuote,shDoubleQuote |
+        \ syn keyword shMyKeyword2  get-ts                                    containedin=ALLBUT,shComment,shSingleQuote,shDoubleQuote |
+        \ syn keyword shMyKeyword2  time-measure                              containedin=ALLBUT,shComment,shSingleQuote,shDoubleQuote |
         \ syn keyword shMyKeywordB  true false                                containedin=ALLBUT,shComment |
-        \ syn match   shMyGlobVar   /[012&]\?\(>\{0,2\}\|<\?\)\/dev\/\%\(stdout\|stderr\|null\|tty\)/     containedin=ALLBUT,shComment |
+        \ syn match   shMyGlobVar   /[012&]\?\(>\{0,2\}\|<\?\) *\/dev\/\%\(stdin\|stdout\|stderr\|null\|tty\)/     containedin=ALLBUT,shComment |
         \ syn match   shMyGlobVar   /[12&]\?>>\?&[12]/                                                    containedin=ALLBUT,shComment |
         \ syn match   shMySet       /set \+[-+][xv]\+/                                                    containedin=ALLBUT,shComment |
         \ syn match   shVariable    /\<\h\w*\ze+\?=/ nextgroup=shVarAssign |
@@ -320,50 +322,7 @@ if has("autocmd")
         \ setlocal conceallevel=0
 
   " Save all files when vim loses focus
-  au FocusLost * silent! wa
-
-  au BufNewFile,BufReadPost,CmdwinEnter *
-        \ if index(['nofile', 'terminal'], &buftype) >= 0 || index(['qf', 'help', 'nofile'], &filetype) >= 0
-        \ | setlocal cursorline
-        \ | nnoremap <buffer> <space> <c-d>
-        \ | nnoremap <buffer> <silent> q<CR> :quit<CR>
-        \ | endif
-  if exists(':Terminal')
-    au TerminalOpen *
-            \ if index(['nofile', 'terminal'], &buftype) >= 0 || index(['qf', 'help', 'nofile'], &filetype) >= 0
-            \ | setlocal cursorline
-            \ | nnoremap <buffer> <space> <c-d>
-            \ | nnoremap <buffer> <silent> q<CR> :quit<CR>
-            \ | endif
-  endif
-
-  au BufNewFile,BufRead * :set relativenumber " relative line numbers
-
-  " with comments
-  au BufNewFile,BufEnter *.c,*.h,*.java,*.jsp set formatoptions-=t
-
-  " set default filetype
-  au BufEnter * if &filetype == "" || &filetype == "text" | setlocal filetype=default | endif
-  au BufReadPost * if expand("<afile>") =~# ".*/grep-last/.*" | setlocal filetype=default | endif
-
-  au BufNewFile,BufRead *.service  setf systemd
-
-  " Session stuff
-  au VimEnter * if ! exists("g:TBSessionDir") || ! isdirectory(g:TBSessionDir) | let g:TBSessionDir = getcwd() | endif
-  au VimLeave * if exists("g:TBSessionName") | call TBSessSave(TBSessGetName(), 1) | endif
-  au WinEnter * if exists("g:TBSessionName") | call TBSessUpdate() | endif
-  au SessionLoadPost * let g:TBSessionSaveTimeLast = localtime()
-
-  " Working with split screen nicely - Resize Split When the window is resized"
-  au VimResized * :wincmd =
-
-  " Omni completion for file types:
-  autocmd FileType java setlocal omnifunc=javacomplete#Complete | completefunc=javacomplete#CompleteParamsInfo
-
-  autocmd FileType arduino set filetype=cpp
-  autocmd FileType c set filetype=cpp
-
-  au TabLeave * if ! exists("SessionLoad") | let g:LastTab = tabpagenr() | endif
+  autocmd FocusLost * silent! wa
 
   " When editing a file, always jump to the last known cursor position.
   " Don't do it when the position is invalid or when inside an event handler
@@ -371,7 +330,53 @@ if has("autocmd")
   " Also don't do it when the mark is in the first line, that is the default
   " position when opening a file.
   autocmd BufReadPost * if line("'\"") > 1 && line("'\"") <= line("$") | exe "normal! g`\"" | endif
+
+  " Fold file, just open fold where the cursor is
   autocmd VimEnter * normal! zvzMzv
+
+  autocmd BufNewFile,BufReadPost,CmdwinEnter *
+        \ if index(['nofile', 'terminal'], &buftype) >= 0 || index(['qf', 'help', 'nofile'], &filetype) >= 0
+        \ | setlocal cursorline
+        \ | nnoremap <buffer> <space> <c-d>
+        \ | nnoremap <buffer> <silent> q<CR> :quit<CR>
+        \ | endif
+
+  if exists(':Terminal')
+    autocmd TerminalOpen *
+            \ if index(['nofile', 'terminal'], &buftype) >= 0 || index(['qf', 'help', 'nofile'], &filetype) >= 0
+            \ | setlocal cursorline
+            \ | nnoremap <buffer> <space> <c-d>
+            \ | nnoremap <buffer> <silent> q<CR> :quit<CR>
+            \ | endif
+  endif
+
+  autocmd BufNewFile,BufRead * :set relativenumber " relative line numbers
+
+  " with comments
+  autocmd BufNewFile,BufEnter *.c,*.h,*.java,*.jsp set formatoptions-=t
+
+  " set default filetype
+  autocmd BufEnter * if &filetype == "" || &filetype == "text" | setlocal filetype=default | endif
+  autocmd BufReadPost * if expand("<afile>") =~# ".*/grep-last/.*" | setlocal filetype=default | endif
+
+  autocmd BufNewFile,BufRead *.service  setf systemd
+
+  " Session stuff
+  autocmd VimEnter    * if ! exists("g:TBSessionDir") || ! isdirectory(g:TBSessionDir) | let g:TBSessionDir = getcwd() | endif
+  autocmd VimLeavePre * if exists("g:TBSessionName") | call TBSessSave(TBSessGetName(), 1) | endif
+  autocmd WinEnter    * if exists("g:TBSessionName") | call TBSessUpdate() | endif
+  autocmd SessionLoadPost * let g:TBSessionSaveTimeLast = localtime()
+
+  " Working with split screen nicely - Resize Split When the window is resized"
+  autocmd VimResized * :wincmd =
+
+  " Omni completion for file types:
+  autocmd FileType java setlocal omnifunc=javacomplete#Complete | completefunc=javacomplete#CompleteParamsInfo
+
+  autocmd FileType arduino set filetype=cpp
+  autocmd FileType c set filetype=cpp
+
+  autocmd TabLeave * if ! exists("SessionLoad") | let g:LastTab = tabpagenr() | endif
 
   let g:DuzyPlik = 2 " MB
   let g:DuzyPlik = g:DuzyPlik * 1024 * 1024
@@ -379,7 +384,7 @@ if has("autocmd")
   autocmd BufReadPre * if getfsize(expand("<afile>")) > g:DuzyPlik | setlocal noswapfile bufhidden=unload ro | endif
 
   " Fix syntax corrupted by folds
-  au Syntax * if getfsize(expand("<afile>")) < g:DuzyPlik | syntax sync fromstart | else | syntax sync minlines=3 | endif
+  autocmd Syntax * if getfsize(expand("<afile>")) < g:DuzyPlik | syntax sync fromstart | else | syntax sync minlines=3 | endif
 
   augroup END
 endif " has("autocmd")
@@ -477,36 +482,39 @@ command! -nargs=1 -complete=custom,TBSessFiles TBSessLoad call TBSessLoad(<f-arg
 " }}}
 " Open corresponding cpp/hpp/c/h file in a split # {{{
 function! TBOpenFile(...)
+    if expand('%:p:.') =~ "^/" | return | endif
     let ext  = expand('%:e')
     let file = expand('%:r')
-    if l:ext == 'h' || l:ext == 'hpp'
-      let l:ext = 'c'
+    if l:ext == 'h' || l:ext == 'hpp' || l:ext == 'hh'
+      let l:exts = [ 'cpp', 'c', 'cc' ]
     elseif l:ext == 'c' || l:ext == 'cpp' || l:ext == 'cc'
-      let l:ext = 'h'
+      let l:exts = [ 'h', 'hpp', 'hh' ]
     else
       return
     endif
-    if filereadable(l:file . '.' . l:ext)            | let file .= '.' . l:ext
-    elseif filereadable(l:file . '.' . l:ext . 'pp') | let file .= '.' . l:ext . 'pp'
-    elseif filereadable(l:file . '.' . l:ext . 'h')  | let file .= '.' . l:ext . 'h'
-    else
-      if expand('%:p:.') =~ "^/" | return | endif
-      let file = expand('%:t:r')
-      let p = ""
-      let p_fmt = '%:p:.:h'
-      let cnt = 3
-      if exists('g:TBOpenFileMaxUp') | let cnt = g:TBOpenFileMaxUp | endif
-      if a:0 > 0 | let cnt = a:1 | endif
-      while l:cnt > 0
-        let p = expand(l:p_fmt . ':h')
-        if l:p == "." | break | endif
-        let p_fmt .= ':h'
-        let cnt -= 1
-      endwhile
-      let res = glob(l:p . "/**/" . l:file . '.' . l:ext . '*')
-      if empty(l:res) | return | endif
-      let file = split(l:res)[0]
-    endif
+    let p = ""
+    let p_fmt = '%:p:.:h'
+    let cnt = 3
+    if exists('g:TBOpenFileMaxUp') | let cnt = g:TBOpenFileMaxUp | endif
+    if a:0 > 0 | let cnt = a:1 | endif
+    while l:cnt > 0
+      let p = expand(l:p_fmt . ':h')
+      if l:p == "." | break | endif
+      let p_fmt .= ':h'
+      let cnt -= 1
+    endwhile
+    let file = expand('%:t:r')
+    for ext in l:exts
+      if filereadable(l:file . '.' . l:ext)
+        let file .= '.' . l:ext
+        break
+      endif
+      let res = glob(l:p . "/**/" . l:file . '.' . l:ext)
+      if ! empty(l:res)
+        let file = split(l:res)[0]
+        break
+      endif
+    endfor
     execute 'edit ' . l:file
 endfunction
 " }}}
@@ -1050,7 +1058,9 @@ function! ClipPaste(cmd, clip)
     return
   endif
   let y_store = @y
-  if a:clip == "-"
+  if a:clip == "xclip-get"
+    let @y = system("$ALIASES xclip --get")
+  elseif a:clip == "last"
     let @y = system("tmux show-buffer")
   else
     let @y = system("tmux show-buffer -b " . a:clip)
@@ -1067,9 +1077,9 @@ nnoremap v/ :VG <C-R><C-R>/<CR>
 " }}}
 " }}}
 " Abbreviations {{{
-iabbr /** /************************************************************************
-iabbr **/ ************************************************************************/
-iabbr //- //-----------------------------------------------------------------------
+" iabbr /** /************************************************************************
+" iabbr **/ ************************************************************************/
+" iabbr //- //-----------------------------------------------------------------------
 " }}}
 " Mappings {{{
 " To small to catalogue {{{
@@ -1190,27 +1200,36 @@ nnoremap <Space> za
 vnoremap <Space> za
 " }}}
 " Copy & Pase line to system clipboard, etc {{{
-nnoremap <silent> <Leader>y "+y$<bar>:call ClipStore("+")<CR>
-nnoremap <silent> <Leader>Y g^"+y$<bar>:call ClipStore("+")<CR>
-vnoremap <silent> <Leader>y "+y<bar>:call ClipStore("+")<CR>
-vnoremap <silent> <Leader>Y $"+y<bar>:call ClipStore("+")<CR>
-if $IS_DOCKER == "false"
+vnoremap <silent> <Enter>    y:call ClipStore("\"")<CR>
+
+nnoremap <silent> <Leader>y    y$:call ClipStore("\"")<CR>
+nnoremap <silent> <Leader>Y  g^y$:call ClipStore("\"")<CR>
+
+vnoremap <silent> <Leader>y  $y:call ClipStore("\"")<CR>
+vnoremap <silent> <Leader>Y   y:call ClipStore("\"")<CR>
+
+nnoremap <silent> <Leader><C-y>   :call ClipStore("\"")<CR>
+vnoremap <silent> <C-y>          y:call ClipStore("\"")<CR>
+
+if $IS_VIRTUAL_OS == "false"
   nnoremap <Leader>p "+p
   nnoremap <Leader>P "+P
   vnoremap <Leader>p "+p
   vnoremap <Leader>P "+P
 else
-  nnoremap <silent> <Leader>p :call ClipPaste("p", "-")<CR>
-  nnoremap <silent> <Leader>P :call ClipPaste("P", "-")<CR>
-  vnoremap <silent> <Leader>p :call ClipPaste("p", "-")<CR>
-  vnoremap <silent> <Leader>P :call ClipPaste("P", "-")<CR>
+  nnoremap <silent> <Leader>p :call ClipPaste("p", "xclip-get")<CR>
+  nnoremap <silent> <Leader>P :call ClipPaste("P", "xclip-get")<CR>
+  vnoremap <silent> <Leader>p :call ClipPaste("p", "xclip-get")<CR>
+  vnoremap <silent> <Leader>P :call ClipPaste("P", "xclip-get")<CR>
 endif
-nnoremap <silent> <Leader><Leader>p :call ClipPaste("p", "clip")<CR>
-nnoremap <silent> <Leader><Leader>P :call ClipPaste("P", "clip")<CR>
-vnoremap <silent> <Leader><Leader>p :call ClipPaste("p", "clip")<CR>
-vnoremap <silent> <Leader><Leader>P :call ClipPaste("P", "clip")<CR>
-nnoremap <silent> <Leader><C-y> :call ClipStore("\"")<CR>
-vnoremap <silent> <C-y> "+y<bar>:call ClipStore("+")<CR>
+nnoremap <silent> <Leader><Leader>p :call ClipPaste("p", "last")<CR>
+nnoremap <silent> <Leader><Leader>P :call ClipPaste("P", "last")<CR>
+vnoremap <silent> <Leader><Leader>p :call ClipPaste("p", "last")<CR>
+vnoremap <silent> <Leader><Leader>P :call ClipPaste("P", "last")<CR>
+nnoremap <silent> <Leader><Leader>cp :call ClipPaste("p", "clip")<CR>
+nnoremap <silent> <Leader><Leader>cP :call ClipPaste("P", "clip")<CR>
+vnoremap <silent> <Leader><Leader>cp :call ClipPaste("p", "clip")<CR>
+vnoremap <silent> <Leader><Leader>cP :call ClipPaste("P", "clip")<CR>
 nmap Y y$
 " }}}
 " Clip file, open {{{
@@ -1225,6 +1244,8 @@ endif " }}}
 " Fix for linewrapping: jump to the next/prev editor line (not physical) {{{
 nnoremap <silent> j gj
 nnoremap <silent> k gk
+nnoremap gh ^
+nnoremap gl $
 " }}}
 " Tig {{{
 nmap <Leader>gt :!command cd %:h && tig -- %:t<CR><CR>
@@ -1352,11 +1373,11 @@ nnoremap <C-W>q <C-w>o <bar> ZQ
 nnoremap <silent> <leader>q/ :execute 'vimgrep /'.@/.'/g %'<CR>:copen<CR>
 " }}}
 " shortcuts in diff {{{
-au FilterWritePre * if &diff | exe 'nnoremap <space> ]cz.' | exe 'nnoremap <S-space> [cz.' | endif
-" au FilterWritePre * if &diff | exe 'nexecute "normal \<c-w>\<c-w>"' | endif
-au FilterWritePre * if &diff | exe 'nnoremap <C-L> :diffupdate<CR>' | endif
-au FilterWritePre * if &diff | exe 'nnoremap =1 :do<CR>' | exe 'nnoremap =2 :dp<CR>' | endif
-au FilterWritePre * if &diff | exe 'nnoremap =8 :vertical resize 82<CR>' | exe 'nnoremap =0 :execute "vertical resize " . (&columns+1)/2<CR>' | endif
+autocmd FilterWritePre * if &diff | exe 'nnoremap <space> ]cz.' | exe 'nnoremap <S-space> [cz.' | endif
+" autocmd FilterWritePre * if &diff | exe 'nexecute "normal \<c-w>\<c-w>"' | endif
+autocmd FilterWritePre * if &diff | exe 'nnoremap <C-L> :diffupdate<CR>' | endif
+autocmd FilterWritePre * if &diff | exe 'nnoremap =1 :do<CR>' | exe 'nnoremap =2 :dp<CR>' | endif
+autocmd FilterWritePre * if &diff | exe 'nnoremap =8 :vertical resize 82<CR>' | exe 'nnoremap =0 :execute "vertical resize " . (&columns+1)/2<CR>' | endif
 " }}}
 " configuration - <F12>c... {{{
 " toggle current line highlight {{{
@@ -1482,9 +1503,9 @@ else
   nmap teJ <NOP>
   nmap tej <NOP>
 endif " }}}
-nmap ten :execute("tabedit " . system("$ALIASES_SCRIPTS/note.sh --show-note-file"))<CR>
-nmap teN :execute("tabedit " . system("$ALIASES_SCRIPTS/note.sh --note-tmux --show-note-file"))<CR>
-nmap tegn :execute("tabedit " . system("$ALIASES_SCRIPTS/note.sh --note-gdrive --show-note-file"))<CR>
+nmap ten :execute("tabedit " . system("$SCRIPT_PATH/bin/note --show-note-file"))<CR>
+nmap teN :execute("tabedit " . system("$SCRIPT_PATH/bin/note --note-tmux --show-note-file"))<CR>
+nmap tegn :execute("tabedit " . system("$SCRIPT_PATH/bin/note --note-gdrive --show-note-file"))<CR>
 " }}}
 " Menu - Explorer {{{
 nmenu My.Explorer.NewTab :Texplore **/*
@@ -1511,10 +1532,14 @@ for f in split(glob($PROFILES_PATH . '/*/inits/vim/*.vim'), '\n')
   exe 'source' f
 endfor
 if filereadable(".vimrc") && getcwd() != $HOME
+  set secure
   source .vimrc
+  echomsg "local .vimrc loaded"
 endif
 if filereadable("./.vim/vimrc")
+  set secure
   source ./.vim/vimrc
+  echomsg "local .vim/vimrc loaded"
 endif
 " }}}
 " Plugins {{{
@@ -1528,22 +1553,71 @@ let OmniCpp_MayCompleteArrow = 1 " autocomplete after ->
 let OmniCpp_MayCompleteScope = 1 " autocomplete after ::
 let OmniCpp_DefaultNamespaces = ["std", "_GLIBCXX_STD"]
 " automatically open and close the popup menu / preview window
-au CursorMovedI,InsertLeave * if pumvisible() == 0|silent! pclose|endif
+autocmd CursorMovedI,InsertLeave * if pumvisible() == 0|silent! pclose|endif
 " set completeopt=menuone,menu,longest,preview
 " }}}
 " YouCompleteMe # {{{
-let g:loaded_youcompleteme = 1
-let g:ycm_auto_trigger = 1
-let g:ycm_min_num_of_chars_for_completion = 4
-let g:ycm_key_invoke_completion = '<C-f>'
+if $VIM_YCM_PATH == '' || $VIM_YCM_PATH == '-'
+  let g:loaded_youcompleteme = 1
+else
+  set runtimepath+=$VIM_YCM_PATH
+  let g:ycm_folder = $VIM_YCM_PATH
+  let g:clang_complete_loaded = 1
+  let g:ycm_auto_trigger = 1
+  let g:ycm_min_num_of_chars_for_completion = 4
+  let g:ycm_key_invoke_completion = '<C-f>'
+  let g:ycm_enable_inlay_hints =1
+  let g:ycm_clear_inlay_hints_in_insert_mode = 1
+  let g:ycm_confirm_extra_conf = 0
+  let g:ycm_auto_hover = ''
+  let g:ycm_enable_semantic_highlighting=1
+  let MY_YCM_HIGHLIGHT_GROUP = {
+        \   'parameter': 'Normal',
+        \   'variable': 'Normal',
+        \   'property': 'Normal',
+        \   'enumMember': 'Normal',
+        \   'member': 'Identifier',
+        \ }
+  for tokenType in keys( MY_YCM_HIGHLIGHT_GROUP )
+    call prop_type_add( 'YCM_HL_' . tokenType,
+                      \ { 'highlight': MY_YCM_HIGHLIGHT_GROUP[ tokenType ] } )
+  endfor
+  let g:syntastic_error_symbol = '✗'
+  let g:syntastic_warning_symbol = '⚠'
+  let g:ycm_key_list_select_completion = ['<TAB>', '<Down>']
+  let g:ycm_key_list_stop_completion = ['<Enter>']
+  let g:ycm_filetype_whitelist = {
+        \ 'cpp': 1,
+        \ 'sh': 1,
+        \ 'javascript': 1,
+        \ 'typescript': 1,
+        \ 'default': 1,
+        \ 'log': 1,
+        \ }
+  if $VIM_YCM_EXTRA_CONF != ''
+    let g:ycm_global_ycm_extra_conf = $VIM_YCM_EXTRA_CONF
+  else
+    let g:ycm_global_ycm_extra_conf = $SCRIPT_PATH . '/bash/inits/ycm_extra_conf.py'
+  endif
+  nnoremap <leader>yh  <Plug>(YCMToggleInlayHints)
+  nnoremap <leader>ysw <Plug>(YCMFindSymbolInWorkspace)
+  nnoremap <leader>ysd <Plug>(YCMFindSymbolInDocument)
+  nnoremap <leader>yd  <plug>(YCMHover)
+endif
 " # }}}
 " Clang-Complete {{{
-if $VIM_CLANG_LIB != '' && $VIM_CLANG_LIB != '-'
-  let g:clang_library_path = $VIM_CLANG_LIB
+if !exists("g:clang_complete_loaded")
+  if $VIM_CLANG_PATH == '-'
+    let g:clang_complete_loaded = 1
+  else
+    if $VIM_CLANG_PATH != ''
+      let g:clang_library_path = $VIM_CLANG_PATH
+    endif
+    let g:clang_user_options = '-std=c++11'
+    let g:clang_snippets = 0
+    nnoremap <silent> <Leader>cc :silent :call g:ClangUpdateQuickFix() <Bar> :copen<CR>
+  endif
 endif
-let g:clang_user_options = '-std=c++11'
-let g:clang_snippets = 0
-nnoremap <silent> <Leader>cc :silent :call g:ClangUpdateQuickFix() <Bar> :copen<CR>
 " }}}
 " Jedi # {{{
 let g:jedi#auto_initialization = 0

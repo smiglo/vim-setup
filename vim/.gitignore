@@ -1,7 +1,5 @@
 view
-third_party
 examples
-
-pythonx
 /tests
-
+autoload/youcompleteme/
+python/ycm

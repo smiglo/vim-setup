@@ -146,8 +146,8 @@ endif
 
 syn cluster mkdNonListItem contains=@htmlTop,htmlItalic,htmlBold,htmlBoldItalic,mkdFootnotes,mkdInlineURL,mkdLink,mkdLinkDef,mkdLineBreak,mkdBlockquote,mkdCode,mkdRule,htmlH1,htmlH2,htmlH3,htmlH4,htmlH5,htmlH6,mkdMath
 
-syn match logIssueLine     /\(\[[A-Z][A-Z0-9]\{1,\}-\d\{3,\}\]\|\<[A-Z][A-Z0-9]\{2,\}-\d\{3,\}\>\)\((https\?:\/\/[^)]*)\)\?\(: .*$\)\?/ contains=logIssue,logIssueLink,logIssueDescrF
-syn match logIssue         /\(\[[A-Z][A-Z0-9]\{1,\}-\d\{3,\}\]\|\<[A-Z][A-Z0-9]\{2,\}-\d\{3,\}\>\)/           contained
+syn match logIssueLine     /\(\[[A-Z][A-Z0-9]\{1,\}-\d\{1,\}\]\|\<[A-Z][A-Z0-9]\{1,\}-\d\{1,\}\>\)\( \?(https\?:\/\/[^)]*)\)\?\(:\? [^\.]*\)$\?/ contains=logIssue,logIssueLink,logIssueDescrF,logIssueAuthor
+syn match logIssue         /\(\[[A-Z][A-Z0-9]\{1,\}-\d\{1,\}\]\|\<[A-Z][A-Z0-9]\{1,\}-\d\{1,\}\>\)/           contained
 syn match logIssueLink     /(https\?:\/\/[^)]*)/                                                              contained
 syn match logIssueDescrF   /: .*/                                                                             contained contains=logIssueDescr
 syn match logIssueDescr    /[^:][^ ].*/                                                                       contained

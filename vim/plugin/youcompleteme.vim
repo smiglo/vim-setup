@@ -24,27 +24,18 @@ function! s:restore_cpo()
   unlet s:save_cpo
 endfunction
 
+" NOTE: The minimum supported version is 8.2.3995, but neovim always reports as
+" v:version 800, but will largely work.
+let s:is_neovim = has( 'nvim' )
+
 if exists( "g:loaded_youcompleteme" )
   call s:restore_cpo()
   finish
-elseif v:version < 704 || (v:version == 704 && !has( 'patch1578' ))
+elseif ( v:version < 901 || (v:version == 901 && !has( 'patch0016' )) ) &&
+      \ !s:is_neovim
   echohl WarningMsg |
-        \ echomsg "YouCompleteMe unavailable: requires Vim 7.4.1578+." |
+        \ echomsg "YouCompleteMe unavailable: requires Vim 9.1.0016+." |
         \ echohl None
-  if v:version == 704 && has( 'patch8056' )
-    " Very very special case for users of the default Vim on macOS. For some
-    " reason, that version of Vim contains a completely arbitrary (presumably
-    " custom) patch '8056', which fools users (but not our has( 'patch1578' )
-    " check) into thinking they have a sufficiently new Vim. In fact they do
-    " not and YCM fails to initialise. So we give them a more specific warning.
-    echohl WarningMsg
-          \ | echomsg
-          \ "Info: You appear to be running the default system Vim on macOS. "
-          \ . "It reports as patch 8056, but it is really older than 1578. "
-          \ . "Please consider MacVim, homebrew Vim or a self-built Vim that "
-          \ . "satisfies the minimum requirement."
-          \ | echohl None
-  endif
   call s:restore_cpo()
   finish
 elseif !has( 'timers' )
@@ -54,10 +45,19 @@ elseif !has( 'timers' )
         \ echohl None
   call s:restore_cpo()
   finish
-elseif !has( 'python' ) && !has( 'python3' )
+elseif !has( 'python3_compiled' )
   echohl WarningMsg |
         \ echomsg "YouCompleteMe unavailable: requires Vim compiled with " .
-        \ "Python (2.7.1+ or 3.4+) support." |
+        \ "Python (3.8.0+) support." |
+        \ echohl None
+  call s:restore_cpo()
+  finish
+" These calls try to load the Python 3 libraries when Vim is
+" compiled dynamically against them. Since only one can be loaded at a time on
+" some platforms, we first check if Python 3 is available.
+elseif !has( 'python3' )
+  echohl WarningMsg |
+        \ echomsg "YouCompleteMe unavailable: unable to load Python." |
         \ echohl None
   call s:restore_cpo()
   finish
@@ -72,11 +72,32 @@ endif
 
 let g:loaded_youcompleteme = 1
 
-" NOTE: Most defaults are in third_party/ycmd/ycmd/default_settings.json. They
-" are loaded into Vim globals with the 'ycm_' prefix if such a key does not
-" already exist; thus, the user can override the defaults.
-" The only defaults that are here are the ones that are only relevant to the YCM
-" Vim client and not the ycmd server.
+"
+" List of YCM options.
+"
+let g:ycm_filetype_whitelist =
+      \ get( g:, 'ycm_filetype_whitelist', { "*": 1 } )
+
+let g:ycm_filetype_blacklist =
+      \ get( g:, 'ycm_filetype_blacklist', {
+      \   'tagbar': 1,
+      \   'notes': 1,
+      \   'markdown': 1,
+      \   'netrw': 1,
+      \   'unite': 1,
+      \   'text': 1,
+      \   'vimwiki': 1,
+      \   'pandoc': 1,
+      \   'infolog': 1,
+      \   'leaderf': 1,
+      \   'mail': 1
+      \ } )
+
+" Blacklist empty buffers unless explicity whitelisted; workaround for
+" https://github.com/ycm-core/YouCompleteMe/issues/3781
+if !has_key( g:ycm_filetype_whitelist, 'ycm_nofiletype' )
+  let g:ycm_filetype_blacklist.ycm_nofiletype = 1
+endif
 
 let g:ycm_open_loclist_on_ycm_diags =
       \ get( g:, 'ycm_open_loclist_on_ycm_diags', 1 )
@@ -138,6 +159,9 @@ let g:ycm_echo_current_diagnostic =
       \ get( g:, 'ycm_echo_current_diagnostic',
       \ get( g:, 'syntastic_echo_current_error', 1 ) )
 
+let g:ycm_filter_diagnostics =
+      \ get( g:, 'ycm_filter_diagnostics', {} )
+
 let g:ycm_always_populate_location_list =
       \ get( g:, 'ycm_always_populate_location_list',
       \ get( g:, 'syntastic_always_populate_loc_list', 0 ) )
@@ -150,11 +174,120 @@ let g:ycm_warning_symbol =
       \ get( g:, 'ycm_warning_symbol',
       \ get( g:, 'syntastic_warning_symbol', '>>' ) )
 
+let g:ycm_complete_in_comments =
+      \ get( g:, 'ycm_complete_in_comments', 0 )
+
+let g:ycm_complete_in_strings =
+      \ get( g:, 'ycm_complete_in_strings', 1 )
+
+let g:ycm_collect_identifiers_from_tags_files =
+      \ get( g:, 'ycm_collect_identifiers_from_tags_files', 0 )
+
+let g:ycm_seed_identifiers_with_syntax =
+      \ get( g:, 'ycm_seed_identifiers_with_syntax', 0 )
+
 let g:ycm_goto_buffer_command =
       \ get( g:, 'ycm_goto_buffer_command', 'same-buffer' )
 
 let g:ycm_disable_for_files_larger_than_kb =
       \ get( g:, 'ycm_disable_for_files_larger_than_kb', 1000 )
+
+let g:ycm_auto_hover =
+      \ get( g:, 'ycm_auto_hover', 'CursorHold' )
+
+let g:ycm_update_diagnostics_in_insert_mode =
+      \ get( g:, 'ycm_update_diagnostics_in_insert_mode', 1 )
+
+"
+" List of ycmd options.
+"
+let g:ycm_filepath_completion_use_working_dir =
+      \ get( g:, 'ycm_filepath_completion_use_working_dir', 0 )
+
+let g:ycm_auto_trigger =
+      \ get( g:, 'ycm_auto_trigger', 1 )
+
+let g:ycm_min_num_of_chars_for_completion =
+      \ get( g:, 'ycm_min_num_of_chars_for_completion', 2 )
+
+let g:ycm_min_identifier_candidate_chars =
+      \ get( g:, 'ycm_min_num_identifier_candidate_chars', 0 )
+
+let g:ycm_semantic_triggers =
+      \ get( g:, 'ycm_semantic_triggers', {} )
+
+let g:ycm_filetype_specific_completion_to_disable =
+      \ get( g:, 'ycm_filetype_specific_completion_to_disable',
+      \      { 'gitcommit': 1 } )
+
+let g:ycm_collect_identifiers_from_comments_and_strings =
+      \ get( g:, 'ycm_collect_identifiers_from_comments_and_strings', 0 )
+
+let g:ycm_max_num_identifier_candidates =
+      \ get( g:, 'ycm_max_num_identifier_candidates', 10 )
+
+let g:ycm_max_num_candidates =
+      \ get( g:, 'ycm_max_num_candidates', 50 )
+
+let g:ycm_extra_conf_globlist =
+      \ get( g:, 'ycm_extra_conf_globlist', [] )
+
+let g:ycm_global_ycm_extra_conf =
+      \ get( g:, 'ycm_global_ycm_extra_conf', '' )
+
+let g:ycm_confirm_extra_conf =
+      \ get( g:, 'ycm_confirm_extra_conf', 1 )
+
+let g:ycm_max_diagnostics_to_display =
+      \ get( g:, 'ycm_max_diagnostics_to_display', 30 )
+
+let g:ycm_filepath_blacklist =
+      \ get( g:, 'ycm_filepath_blacklist', {
+      \   'html': 1,
+      \   'jsx': 1,
+      \   'xml': 1
+      \ } )
+
+let g:ycm_auto_start_csharp_server =
+      \ get( g:, 'ycm_auto_start_csharp_server', 1 )
+
+let g:ycm_auto_stop_csharp_server =
+      \ get( g:, 'ycm_auto_stop_csharp_server', 1 )
+
+let g:ycm_use_ultisnips_completer =
+      \ get( g:, 'ycm_use_ultisnips_completer', 1 )
+
+let g:ycm_csharp_server_port =
+      \ get( g:, 'ycm_csharp_server_port', 0 )
+
+let g:ycm_use_clangd =
+      \ get( g:, 'ycm_use_clangd', 1 )
+
+let g:ycm_clangd_binary_path =
+      \ get( g:, 'ycm_clangd_binary_path', '' )
+
+let g:ycm_clangd_args =
+      \ get( g:, 'ycm_clangd_args', [] )
+
+let g:ycm_clangd_uses_ycmd_caching =
+      \ get( g:, 'ycm_clangd_uses_ycmd_caching', 1 )
+
+" These options are not documented.
+let g:ycm_java_jdtls_extension_path =
+      \ get( g:, 'ycm_java_jdtls_extension_path', [] )
+
+let g:ycm_java_jdtls_use_clean_workspace =
+      \ get( g:, 'ycm_java_jdtls_use_clean_workspace', 1 )
+
+let g:ycm_java_jdtls_workspace_root_path =
+      \ get( g:, 'ycm_java_jdtls_workspace_root_path', '' )
+
+" This option is deprecated.
+let g:ycm_python_binary_path =
+      \ get( g:, 'ycm_python_binary_path', '' )
+
+let g:ycm_refilter_workspace_symbols =
+      \ get( g:, 'ycm_refilter_workspace_symbols', 1 )
 
 if has( 'vim_starting' ) " Loading at startup.
   " We defer loading until after VimEnter to allow the gui to fork (see
