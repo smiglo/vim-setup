@@ -12,6 +12,7 @@ runtime!  syntax/syntax-common.vim
 syn match logStack       /^\%(-\s\)*\<\%(Exception\|Registers\|Stack Dump\|reg\|pc\|ra\|PC\|Signal\)\>.*/
 
 syn match logFile        /^[A-Za-z0-9_/~%\-\.]\{5,\}:\%(\d\+\)\?[:-]/                                                          conceal cchar=-  nextgroup=logTime,logHash contains=logLine
+syn match logCmd         /^[~/][A-Za-z0-9_/%\-\.]\{5,\}\$/                                                                     conceal cchar=$  nextgroup=logTime,logHash
 
 syn match logTime        /\(Jan\|Feb\|Mar\|Apr\|May\|Jun\|Jul\|Aug\|Sep\|Oct\|Nov\|Dec\)\>\s\+\d\+/                            conceal cchar=␥  nextgroup=logTime
 syn match logTime        /\s*\[\?\<\d\{4\}-\d\d-\d\d\>\%( \d\d:\d\d:\d\d\(\.\d\{6,\}\)\?\)\?\]\?\s*/                           conceal cchar=␥  nextgroup=logTime

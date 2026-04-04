@@ -396,7 +396,13 @@ if $diff_mode; then
     files=( "${fn[@]}" )
   fi
   if [[ ! -z ${files[*]} ]] && ! $show_diff; then
-    eval command diff -q ${files[*]@Q} >/dev/null 2>&1 && echor "Files are the same" && exit 0
+    areAllFiles=true
+    for f in ${files[@]}; do
+      [[ -f $f ]] || { areAllFiles=false; break; }
+    done
+    if $areAllFiles; then
+      eval command diff -q ${files[*]@Q} >/dev/null 2>&1 && echor "Files are the same" && exit 0
+    fi
   fi
   opts+=" -dO -c FastVim"
 fi
@@ -404,6 +410,7 @@ if $git_merge_mode; then
   opts="${opts%\"*} | set cursorline | let @/='"'^\\%(\\([<\\|>]\\)\\1\\{6\\} \\)\\|^\\%(=\\{7\\}\\)$'"' \""
 fi
 echorm "$binary $opts $optsEnd ${files[*]@Q} $stdinRedit"
+type -p set-title-pane >/dev/null 2>&1 && export VIM_TITLE="vim: $(set-title-pane --get)"
 eval "$binary" $opts $optsEnd ${files[*]@Q} $stdinRedit
 # }}}
 
