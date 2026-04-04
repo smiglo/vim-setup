@@ -10,7 +10,7 @@ if exists("syntax_on")
   syntax reset
 endif
 let g:colors_name = "tom"
-hi Normal		guifg=#C0C0C0	guibg=black
+hi Normal		guifg=fbf1c7	guibg=black
 hi CursorLine 	guibg=Red	ctermbg=236 cterm=bold term=bold
 hi NonText		guifg=brown
 hi comment		guifg=green
@@ -48,4 +48,3 @@ hi DiffAdd    cterm=bold ctermfg=10 ctermbg=17 gui=none guifg=#F5EA4E guibg=#0A8
 hi DiffDelete cterm=bold ctermfg=10 ctermbg=17 gui=none guifg=#F5EA4E guibg=#A85D5D
 hi DiffChange cterm=bold ctermfg=10 ctermbg=17 gui=none guifg=#F5EA4E guibg=#4F678F
 hi DiffText   cterm=bold ctermfg=10 ctermbg=88 gui=none guifg=#F5EA4E guibg=#AA0000
-
