@@ -44,6 +44,7 @@ syn match logCmdV2_3    /:/                             contained nextgroup=logC
 syn match logCmdV2_4    /[^#]*/                         contained nextgroup=logCmdV2_5 conceal
 syn match logCmdV2_5    /#/                             contained nextgroup=logCmdV2_6 conceal cchar=#
 syn match logCmdV2_6    / .*$/                          contained
+syn match logCmd        /^[~/][A-Za-z0-9_/%\-\.]\{5,\}\$/                 conceal cchar=$
 
 syn match logHash       /\x\{26\}:\?\s*/                                              conceal cchar=⌗  " md5
 syn match logHash       /\x\{32,\}:\?\s*/                                             conceal cchar=⌗  " 32-len+ (sha1, sha256, oth)
@@ -95,6 +96,7 @@ hi def link logModule   PreProc
 hi def link logKeyword  Todo
 hi def link logKeyword2 ErrorMsg
 hi def link logComment  Comment
+hi def link logCmd      Comment
 hi def link logCmd1     Comment
 hi def link logCmd2     PreProc
 hi def link logCmd2Root PreProc

@@ -12,19 +12,11 @@ endif " }}}
 " endif
 " }}}
 " Runtime setup. {{{
-if has('win16') || has('win32') || has('win64')
-  if $LOCATION ==? "home"
-    set path+=e:/Tom/programy/batch
-    set path+=e:/Tom/programy/_setup/vim/vim
-    set runtimepath+=e:/Tom/programy/_setup/vim/vim
-  endif
-endif
 " When started as "evim", evim.vim will already have done these settings. {{{
-  if v:progname =~? "evim"
-    finish
-  endif
+if v:progname =~? "evim"
+  finish
+endif
 " }}}
-" set runtimepath+=~/.vim/my_mods
 " }}}
 " General {{{
 " Use Vim settings, rather than Vi settings (much better!).
@@ -78,11 +70,15 @@ set backspace=indent,eol,start " allow backspacing over everything in insert mod
 set cpo+=>        " add line break when appending into a register
 set tw=0          " textwidth
 set timeout timeoutlen=750 ttimeoutlen=200   " ESC timeout
-set clipboard=unnamed " if unnamedplus is chosen, then all deletes go into system clipboard what is unwanted
-if $VIM_CLIPBOARD != ""
-  let &clipboard = $VIM_CLIPBOARD
-endif
-set pastetoggle=<f5> " do I need this if I know "+ register?
+" if $VIM_CLIPBOARD != ""
+"   let &clipboard = $VIM_CLIPBOARD
+" elseif has('unnamedplus')
+"   set clipboard=unnamedplus
+" else
+"   set clipboard=unnamed
+" endif
+" set clipboard=unnamedplus,unnamed
+set pastetoggle=<f5>
 set switchbuf=useopen,usetab " don't duplicate an existing open buffer
 set matchpairs+=<:> " Jump over '<' '>' blocks using TAB (and % by default)
 set sessionoptions=buffers,sesdir,tabpages,winsize,globals,localoptions,folds
@@ -190,13 +186,17 @@ if has('gui_running')
   set guioptions-=r
   set guioptions-=b
   set cursorline
+  set guicursor=
+  set guicursor+=n-c-o:block-blinkon3200-blinkoff300-CursorBlock
+  set guicursor+=i-ci:ver35-blinkon2200-blinkoff300-CursorBar
+  set guicursor+=r-cr:hor15-blinkon2200-blinkoff300-CursorBar2
+  set guicursor+=v-ve:block-blinkon0-CursorBlock
+  set guicursor+=sm:block-blinkon3200-blinkoff300-CursorBlock
+elseif &term != 'linux'
+  let &t_SI = "\e[1 q\e]12;#fabd2f\007"
+  let &t_EI = "\e[2 q\e]12;#00afaf\007"
+  let &t_SR = "\e[1 q\e]12;#ff5f00\007"
 endif
-" }}}
-" Navigation between split windows {{{
-" nnoremap <C-j> <C-w>j
-" nnoremap <C-k> <C-w>k
-" nnoremap <C-h> <C-w>h
-" nnoremap <C-l> <C-w>l
 " }}}
 " Keep search pattern at the center of the screen {{{
 nnoremap <silent>n nzz
@@ -213,7 +213,11 @@ set smarttab
 set expandtab  " replaces tabs with spaces
 set shiftround " use multiple of shiftwidth when indenting with < >
 set title
-set titlestring=vim:\ %{fnamemodify(getcwd(),':t')}
+if $VIM_TITLE == ''
+  set titlestring=vim:\ %{fnamemodify(getcwd(),':t')}
+else
+  let &titlestring = $VIM_TITLE
+endif
 " }}}
 " Indents {{{
 set autoindent    " always set autoindenting on
@@ -253,6 +257,9 @@ endif
 
 hi HL_HiCurLine ctermbg=darkblue guibg=#404040
 let HL_HiCurLine = "HL_HiCurLine"
+hi CursorBlock guibg=#00afaf guifg=#fbf1c7
+hi CursorBar   guibg=#fabd2f guifg=#fbf1c7
+hi CursorBar2  guibg=Red     guifg=#fbf1c7
 
 " }}}
 " File formats {{{
@@ -629,6 +636,9 @@ command! FastVim       setlocal buftype= bufhidden=hide noswapfile cursorline | 
 command! FastVimSave   noremap          q<CR> :xa!<CR>      | noremap qq<CR> :quitall!<CR> | execute "noremap <buffer> <special> <silent> \<F12\>cF :execute 'ScratchBuffer'<CR>"
 command! ScratchBuffer execute 'FastBuffer' | setlocal buftype=nofile | execute "noremap <buffer> <special> <silent> \<F12\>cF :execute 'FastBuffer'<CR>"
 command! NormClipboard unmap y                 |  unmap Y
+if has('gui_running')
+  autocmd VimEnter    * execute 'ScratchBuffer'
+endif
 " }}}
 " Building {{{
 function! TBBldGetMakefile() " {{{
@@ -1048,6 +1058,10 @@ nnoremap <expr> <Leader>\tD TBInsertLog("DUPL")
 " }}}
 " Clipboard helpers {{{
 function! ClipStore(reg)
+  if has('gui_running')
+    let @+ = getreg(a:reg)
+    return
+  endif
   if $CLIP_FILE == "" | return | endif
   call writefile(getreg(a:reg, 1, 1), $CLIP_FILE . ".vim", "s")
   let out = system("$ALIASES xclip --put $CLIP_FILE.vim")
@@ -1060,10 +1074,12 @@ function! ClipPaste(cmd, clip)
   let y_store = @y
   if a:clip == "xclip-get"
     let @y = system("$ALIASES xclip --get")
-  elseif a:clip == "last"
-    let @y = system("tmux show-buffer")
-  else
-    let @y = system("tmux show-buffer -b " . a:clip)
+  elseif $TMUX != ""
+    if a:clip == "last"
+      let @y = system("tmux show-buffer")
+    else
+      let @y = system("tmux show-buffer -b " . a:clip)
+    endif
   endif
   exec "normal \"y" . a:cmd
   let @y = l:y_store
@@ -1096,6 +1112,8 @@ noremap           <c-l>   <c-i>
 nnoremap <silent> <Leader>cf  :let @f = expand("%")   <BAR> let @+=@f<CR>
 nnoremap <silent> <Leader>cF  :let @f = expand("%:t") <BAR> let @+=@f<CR>
 nnoremap <silent> <Leader>cFF :let @f = expand("%:p") <BAR> let @+=@f<CR>
+nnoremap          <Leader>/-  /[–—“”]/<CR>
+nnoremap          <Leader>DD  ggVGd
 vnoremap <CR> y
 " }}}
 " cd # {{{
@@ -1333,7 +1351,7 @@ nnoremap <Leader>Cn :cnext<CR>
 nnoremap <Leader>Cp :cprev<CR>
 " }}}
 " Ack from search{{{
-nnoremap <Leader>ack :AckFromSearch<cr>
+" nnoremap <Leader>Ack :AckFromSearch<cr>
 " }}}
 " tab next and tab prev {{{
 nnoremap tn gt
@@ -1368,6 +1386,12 @@ nmap <silent> tl :exe "tabn " . g:LastTab <CR>
 " }}}
 " Close all splits in the current window {{{
 nnoremap <C-W>q <C-w>o <bar> ZQ
+" }}}
+" Navigation between split windows {{{
+nnoremap <C-q><C-j> <C-w>j
+nnoremap <C-q><C-k> <C-w>k
+nnoremap <C-q><C-h> <C-w>h
+nnoremap <C-q><C-l> <C-w>l
 " }}}
 " Open a Quickfix window for the last search. {{{
 nnoremap <silent> <leader>q/ :execute 'vimgrep /'.@/.'/g %'<CR>:copen<CR>
@@ -1522,15 +1546,15 @@ nmenu My.Find.Grep :lvimgrep // %<Left><Left><Left>
 " }}}
 " }}}
 " Use any other specifics {{{
-if filereadable($RUNTIME_PATH."/vimrc")
-  source $RUNTIME_PATH/vimrc
-endif
-if filereadable($HOME."/.vimrc.specific")
-  source $HOME/.vimrc.specific
-endif
 for f in split(glob($PROFILES_PATH . '/*/inits/vim/*.vim'), '\n')
   exe 'source' f
 endfor
+if filereadable($HOME."/.vimrc.specific")
+  source $HOME/.vimrc.specific
+endif
+if filereadable($RUNTIME_PATH."/vimrc")
+  source $RUNTIME_PATH/vimrc
+endif
 if filereadable(".vimrc") && getcwd() != $HOME
   set secure
   source .vimrc
@@ -1564,9 +1588,9 @@ else
   let g:ycm_folder = $VIM_YCM_PATH
   let g:clang_complete_loaded = 1
   let g:ycm_auto_trigger = 1
-  let g:ycm_min_num_of_chars_for_completion = 4
+  let g:ycm_min_num_of_chars_for_completion = 12
   let g:ycm_key_invoke_completion = '<C-f>'
-  let g:ycm_enable_inlay_hints =1
+  let g:ycm_enable_inlay_hints = 1
   let g:ycm_clear_inlay_hints_in_insert_mode = 1
   let g:ycm_confirm_extra_conf = 0
   let g:ycm_auto_hover = ''
@@ -1701,6 +1725,8 @@ if $FZF_INSTALLED ==? "true"
   nnoremap          ,l              :BLines<CR>
   nnoremap          ,*              :Ag <c-r>=expand("<cword>")<cr><CR>
   nnoremap          ,ag             :Ag <c-r>=expand("<cword>")<cr><CR>
+  nnoremap          ,a/             :Ag <c-r>/<CR>
+  nnoremap          <Leader>a       :Ag 
   nnoremap <silent> ,a              :Ag<CR>
   nnoremap <silent> <Leader><c-a>   :Ag<CR>
   nnoremap          ,,bt            :BTags <c-r>=expand("<cword>")<cr><CR>
@@ -1863,4 +1889,3 @@ nmap    <Leader><Leader>k      1000k
 " Akward issue with usage of fzf within vim in some cases {{{
 source $HOME/.vim/autoload/fugitive.vim
 " }}}
-

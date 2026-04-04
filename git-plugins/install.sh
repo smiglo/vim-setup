@@ -122,7 +122,7 @@ done # }}}
 case $wtd in # {{{
 INSTALL | UNINSTALL) # {{{
   if [[ -z $dry ]] || ! $quiet; then
-    $dry _vim -c "\":helptags $VIM_EXE/doc/\"" -c ":q"
+    $dry vim -c "\":helptags $VIM_EXE/doc/\"" -c ":q"
   fi ;;& # }}}
 INSTALL) # {{{
   ;; # }}}
