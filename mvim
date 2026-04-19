@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # vim: fdl=0 ft=sh
 
-source $ALIASES_D/0.essentials
-import-module echorm echor
+source $BASH_PATH/essentials
+import-module echor
 # Functions # {{{
 checkRemoteVim() { # {{{
   [[ -z $1 ]] && return 1
@@ -58,7 +58,6 @@ if [[ "$1" == "@@" ]]; then
   ret_val=
   case $3 in
   --type) # {{{
-    $IS_MAC && source $ALIASES --force
     ret_val="$(declare -F | awk '{print $3}' | command grep "^[^_]" | sort -u)";; # }}}
   --which) # {{{
     ret_val="$(echo -n "$PATH:." | xargs -d: -I{} -r -- find -L {} -maxdepth 1 -mindepth 1 -type f -executable -printf '%P\n' 2>/dev/null | sort -u)";; # }}}
@@ -251,6 +250,7 @@ if $parsing_parameters; then # {{{
         diff_mode=true
         [[ $1 == '--show-diff' ]] && show_diff=true;;
       --edit) opts+=" -c startinsert";;
+      --editor) opts+=" -c FastBuffer -c 'set cursorline' -p"; open_file_method="";;
       +files) ! $stdin && [[ -z $2 ]] && optsEnd+=" -c :Files";;
       --Fast) opts+=" -c FastVim";;
       --fast-quit) opts+=" -c FastBuffer";;
@@ -271,7 +271,6 @@ if $parsing_parameters; then # {{{
         [[ -z ${files[0]} || ! -e ${files[0]} ]] && echo "File not found" >/dev/stderr && exit 1;; # }}}
       --type) # {{{
         shift
-        $IS_MAC && ! declare -F | command grep -q " $1\$" && source $ALIASES --force
         ! declare -F | command grep -q " $1\$" && echo "Function not found" >/dev/stderr && exit 1
         f="$TMP_MEM_PATH/$1-vim.sh"
         declare -f $1 >"$f"
@@ -316,6 +315,7 @@ if $parsing_parameters; then # {{{
           files+="( <($i) )"
         done < <(echo "$list")
         ;; # }}}
+      --) open_file_method="-p --";;
       -*) # {{{
         arg="$1"
         if $diff_mode; then
@@ -413,4 +413,3 @@ echorm "$binary $opts $optsEnd ${files[*]@Q} $stdinRedit"
 type -p set-title-pane >/dev/null 2>&1 && export VIM_TITLE="vim: $(set-title-pane --get)"
 eval "$binary" $opts $optsEnd ${files[*]@Q} $stdinRedit
 # }}}
-
