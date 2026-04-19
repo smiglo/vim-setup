@@ -1,6 +1,18 @@
 " vim: fdl=0 fdm=marker
 
-if $IS_MAC == 'true' && has("python3") " {{{
+if has("mac") || has("macunix") " {{{
+  let g:os = "mac"
+elseif has("unix")
+  let s:distro = system("sed -n '/^ID=/s/.*=//p' /etc/os-release | tr -d '\n'")
+  if s:distro == "arch"
+    let g:os = "arch"
+  elseif s:distro == "ubuntu"
+    let g:os = "ubuntu"
+  else
+    let g:os = "linux"
+  endif
+endif " }}}
+if g:os == "mac" && has("python3") " {{{
   py3 ""
 endif " }}}
 " Useful stuff {{{
@@ -88,12 +100,15 @@ if $VIM_UTILS_PATH != ""
   set viminfo+=n$VIM_UTILS_PATH/viminfo
 endif
 " set colorcolumn=110 "shows color column at 110
-if has("gui_macvim")
+if g:os == "mac"
   set guifont=Fira\ Mono:h17,Inconsolata:h17
-  set printfont=Fira\ Mono:h17,Inconsolata:h17
+  set printfont=Fira\ Mono:h12,Inconsolata:h12
+elseif g:os == "arch"
+  set guifont=FiraCode\ Nerd\ Font\ 12,Inconsolata\ 12
+  set printfont=FiraCode\ Nerd\ Font\ 12,Inconsolata\ 12
 else
   set guifont=Fira\ Mono\ 14,Inconsolata\ 16
-  set printfont=Fira\ Mono\ 14,Inconsolata\ 16
+  set printfont=Fira\ Mono\ 12,Inconsolata\ 12
 endif
 set printencoding=latin2
 set printheader=%=%t/%N
@@ -653,7 +668,7 @@ endfunction " }}}
 function! TBBldGetMakefileTargets(makeCompiler) " {{{
   let makeCompl = '/usr/share/bash-completion/completions/make'
   let sedParams = '-nrf'
-  if $IS_MAC == 'true' " {{{
+  if g:os == "mac" " {{{
     let makeCompl = $RUNTIME_PATH . '/completion.d/ports.completions/make'
     let sedParams = '-nf'
   endif " }}}
@@ -934,7 +949,7 @@ nnoremap <silent> <C-q><CR> :call TBTmuxSplit({'wnd': '1'})<CR>
 " }}}
 " Send To Pane " {{{
 function! TBSendToPaneCompl(A, L, P) " {{{
-  if $IS_MAC == 'true' | let l:cmd = "pstree $p | command grep -q '[M]acOS/Vim'"
+  if g:os == "mac"     | let l:cmd = "pstree $p | command grep -q '[M]acOS/Vim'"
   else                 | let l:cmd = "pstree -Ac $p | command grep -q -e '---vim'"
   endif
   let l:out = split(system(
@@ -953,7 +968,7 @@ function! TBSendToPane(...) " {{{
   if l:t !~ ".*\..*" | let t .= ".1" | endif
   let f = expand('%:p')
   if filereadable(l:f)
-    silent execute '!$ALIASES_SCRIPTS/fzf-tools/fzf-exe.sh -c pane --pane ' . l:t . ' -f ' . shellescape(l:f)
+    silent execute '!$ENV_SCRIPTS/fzf-tools/fzf-exe.sh -c pane --pane ' . l:t . ' -f ' . shellescape(l:f)
     execute ':redraw!'
   else
     echom "Not existing file [" . l:f . "]"
@@ -1064,7 +1079,7 @@ function! ClipStore(reg)
   endif
   if $CLIP_FILE == "" | return | endif
   call writefile(getreg(a:reg, 1, 1), $CLIP_FILE . ".vim", "s")
-  let out = system("$ALIASES xclip --put $CLIP_FILE.vim")
+  let out = system("$SCRIPT_PATH/bin/oth/tmux-xclip --put $CLIP_FILE.vim")
 endfunction
 function! ClipPaste(cmd, clip)
   if has('gui_running') || $TMUX == ""
@@ -1073,7 +1088,7 @@ function! ClipPaste(cmd, clip)
   endif
   let y_store = @y
   if a:clip == "xclip-get"
-    let @y = system("$ALIASES xclip --get")
+    let @y = system("$SCRIPT_PATH/bin/oth/tmux-xclip --get")
   elseif $TMUX != ""
     if a:clip == "last"
       let @y = system("tmux show-buffer")
@@ -1392,6 +1407,7 @@ nnoremap <C-q><C-j> <C-w>j
 nnoremap <C-q><C-k> <C-w>k
 nnoremap <C-q><C-h> <C-w>h
 nnoremap <C-q><C-l> <C-w>l
+nnoremap <silent> <C-q><Space> :MaximizerToggle<CR>
 " }}}
 " Open a Quickfix window for the last search. {{{
 nnoremap <silent> <leader>q/ :execute 'vimgrep /'.@/.'/g %'<CR>:copen<CR>
@@ -1546,7 +1562,7 @@ nmenu My.Find.Grep :lvimgrep // %<Left><Left><Left>
 " }}}
 " }}}
 " Use any other specifics {{{
-for f in split(glob($PROFILES_PATH . '/*/bash/inits/vim/*.vim'), '\n')
+for f in split(glob($PROFILES_PATH . '/*/inits/vim/*.vim'), '\n')
   exe 'source' f
 endfor
 if filereadable($HOME."/.vimrc.specific")
@@ -1621,7 +1637,7 @@ else
   if $VIM_YCM_EXTRA_CONF != ''
     let g:ycm_global_ycm_extra_conf = $VIM_YCM_EXTRA_CONF
   else
-    let g:ycm_global_ycm_extra_conf = $SCRIPT_PATH . '/bash/inits/dot-files/ycm_extra_conf.py'
+    let g:ycm_global_ycm_extra_conf = $SCRIPT_PATH . '/inits/dot-files/ycm_extra_conf.py'
   endif
   nnoremap <leader>yh  <Plug>(YCMToggleInlayHints)
   nnoremap <leader>ysw <Plug>(YCMFindSymbolInWorkspace)
@@ -1657,7 +1673,7 @@ nmap <Leader>ga :execute "Git add " . expand("%")<CR><CR>
 " Cscope {{{
 if has("cscope")
   set csprg=/usr/bin/cscope
-  if $IS_MAC == 'true'
+  if g:os == "mac"
     set csprg=/usr/local/bin/cscope
   endif
   set nocsverb
@@ -1711,13 +1727,9 @@ let g:SignaturePurgeConfirmation=1
 " FZF {{{
 if $FZF_INSTALLED ==? "true"
   let g:loaded_ctrlp = 1 " Disables Ctrl-P
-  if $FZF_PATH != "" && $FZF_PATH != $SCRIPT_PATH."/bash/inits/fzf/bin"
-    let &runtimepath.=','.fnamemodify($FZF_PATH, ":h")
-  endif
   if $VIM_FZF_RUNTIME_PATH != ""
     set runtimepath+=$VIM_FZF_RUNTIME_PATH
   endif
-  set runtimepath+=$SCRIPT_PATH/bash/inits/fzf
   nnoremap <silent> <c-p>           :Files<CR>
   nnoremap <silent> ,f              :Files<CR>
   nnoremap <silent> ,g              :GFiles<CR>
