@@ -1275,8 +1275,8 @@ if has('gui_running')
   nnoremap <Leader><c-v>      "+p
 endif " }}}
 " Fix for linewrapping: jump to the next/prev editor line (not physical) {{{
-nnoremap <silent> j gj
-nnoremap <silent> k gk
+nnoremap <silent> j gj<ignore>
+nnoremap <silent> k gk<ignore>
 nnoremap gh ^
 nnoremap gl $
 " }}}

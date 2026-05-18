@@ -1,8 +1,12 @@
 #!/usr/bin/env bash
 # vim: fdl=0 ft=sh
 
-source $BASH_PATH/essentials
-import-module echor
+if [[ -n $BASH_PATH ]]; then
+  source $BASH_PATH/essentials
+  import-module echor
+else
+  echorm() { :; }
+fi
 # Functions # {{{
 checkRemoteVim() { # {{{
   [[ -z $1 ]] && return 1
