@@ -64,19 +64,31 @@ if [[ "$1" == "@@" ]]; then
   --type) # {{{
     ret_val="$(declare -F | awk '{print $3}' | command grep "^[^_]" | sort -u)";; # }}}
   --which) # {{{
-    ret_val="$(echo -n "$PATH:." | xargs -d: -I{} -r -- find -L {} -maxdepth 1 -mindepth 1 -type f -executable -printf '%P\n' 2>/dev/null | sort -u)";; # }}}
+    ret_val=$(
+      IFS=:
+      for dir in $PATH; do
+        if [[ "$dir" == "$HOME"* && -d "$dir" ]]; then
+          find -L "$dir" -maxdepth 1 -mindepth 1 -type f -executable 2>/dev/null | while read -r f; do
+            [[ ! $(file --mime "$f") =~ binary ]] && echo "${f##*/}"
+          done
+        fi
+      done | sort -u
+    );; # }}}
   --link) # {{{
     ret_val="--all"
     ret_val+=" $(command cd $VIM_SESSIONS_PATH 2>/dev/null && ls *.vim)"
     ret_val+=" $(echo "$ret_val" | sed 's|\(\.as\)\?\.vim||')";; # }}}
   *) # {{{
-    ret_val+=" @@-f --scratch --fast --Fast --fast-save --fast-quit "
-    ret_val+=" --edit -1l -gg -ll -G -cl"
-    ret_val+=" --type --which"
-    ret_val+=" --session --no-session"
-    ret_val+=" --link -f --files +files"
-    ret_val+=" --diff --show-diff"
-    [[ ! -z $HISTFILE ]] && ret_val+=" -h"
+    ret_val+=" @@-f"
+    if [[ $cur == -* ]]; then
+      ret_val+=" --scratch --fast --Fast --fast-save --fast-quit "
+      ret_val+=" --edit -1l -gg -ll -G -cl"
+      ret_val+=" --type --which"
+      ret_val+=" --session --no-session"
+      ret_val+=" --link -f --files +files"
+      ret_val+=" --diff --show-diff"
+      [[ ! -z $HISTFILE ]] && ret_val+=" -h"
+    fi
     if [[ $name == *-session || $name == vimS || $3 == '-S' ]]; then # {{{
       ret_val=
       if [[ -e "./.vim" ]]; then
@@ -86,7 +98,7 @@ if [[ "$1" == "@@" ]]; then
       fi
       [[ -e 'Session.vim' && -L 'Session.vim' && " $ret_val " == *\ Session\ * ]] && ret_val="${ret_val/Session}" # }}}
     elif [[ $name == *diff* ]]; then # {{{
-      ret_val+=".h .c .cpp" # }}}
+      (( $2 > 2 )) && ret_val+=" .h .c .cpp" # }}}
     elif $use_gui; then # {{{
       [[ $2 == 1 ]] && ret_val="$($binary --serverlist)"
     fi # }}}

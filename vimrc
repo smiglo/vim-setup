@@ -223,7 +223,7 @@ nnoremap <silent>g* g*zz
 " Tabs {{{
 set shiftwidth=2
 set tabstop=4
-set softtabstop=2
+set softtabstop=-1
 set smarttab
 set expandtab  " replaces tabs with spaces
 set shiftround " use multiple of shiftwidth when indenting with < >
@@ -386,8 +386,6 @@ if has("autocmd")
   " Session stuff
   autocmd VimEnter    * if ! exists("g:TBSessionDir") || ! isdirectory(g:TBSessionDir) | let g:TBSessionDir = getcwd() | endif
   autocmd VimLeavePre * if exists("g:TBSessionName") | call TBSessSave(TBSessGetName(), 1) | endif
-  autocmd WinEnter    * if exists("g:TBSessionName") | call TBSessUpdate() | endif
-  autocmd SessionLoadPost * let g:TBSessionSaveTimeLast = localtime()
 
   " Working with split screen nicely - Resize Split When the window is resized"
   autocmd VimResized * :wincmd =
@@ -453,15 +451,6 @@ function! TBSessGetFile(auto_save, local) " {{{
   return l:ret
 endfunction
 command! -nargs=? TBSessGetFile call TBSessGetFile(<f-args>) " }}}
-function! TBSessUpdate(...) " {{{
-  if ! exists("g:TBSessionName") | return | endif
-  let l:delta = 60 * 60
-  if exists("g:TBSessionSaveTimeDelta") | let l:delta = g:TBSessionSaveTimeDelta | endif
-  if !exists("g:TBSessionSaveTimeLast") | let g:TBSessionSaveTimeLast = 0 | endif
-  if g:TBSessionSaveTimeLast + l:delta < localtime()
-    call TBSessSave(TBSessGetName(), 1)
-  endif
-endfunction " }}}
 function! TBSessFiles(A, L, P) " {{{
   return system("cd $VIM_SESSIONS_PATH && ls *.vim 2>/dev/null | command grep -vF '.as' | sed -e 's/\.vim//g'")
 endfunction " }}}
@@ -484,7 +473,6 @@ function! TBSessSave(...) " {{{
   let l:filename_vsd = TBSessGetFile(l:auto_save, 0)
   execute "lcd " . l:sessionDir
   execute "mksession! " . l:filename_vsd
-  if l:auto_save == 1 | let g:TBSessionSaveTimeLast = localtime() | endif
   if l:sessionName != "Session"
     let l:filename_cwd = TBSessGetFile(l:auto_save, 1)
     call system("mv " . l:filename_vsd . " $VIM_SESSIONS_PATH/")
@@ -1568,6 +1556,9 @@ endfor
 if filereadable($HOME."/.vimrc.specific")
   source $HOME/.vimrc.specific
 endif
+if filereadable($VIMRC_FILE)
+  source $VIMRC_FILE
+endif
 if filereadable($RUNTIME_PATH."/vimrc")
   source $RUNTIME_PATH/vimrc
 endif
@@ -1645,20 +1636,6 @@ else
   nnoremap <leader>yd  <plug>(YCMHover)
 endif
 " # }}}
-" Clang-Complete {{{
-if !exists("g:clang_complete_loaded")
-  if $VIM_CLANG_PATH == '-'
-    let g:clang_complete_loaded = 1
-  else
-    if $VIM_CLANG_PATH != ''
-      let g:clang_library_path = $VIM_CLANG_PATH
-    endif
-    let g:clang_user_options = '-std=c++11'
-    let g:clang_snippets = 0
-    nnoremap <silent> <Leader>cc :silent :call g:ClangUpdateQuickFix() <Bar> :copen<CR>
-  endif
-endif
-" }}}
 " Jedi # {{{
 let g:jedi#auto_initialization = 0
 " let g:jedi#completions_command = "<C-N>"
