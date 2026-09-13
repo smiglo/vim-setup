@@ -25,8 +25,8 @@ hi WarningMsg	guifg=Black	guibg=Green
 hi Error		guibg=Red
 hi Todo			guifg=Black	guibg=orange
 hi Cursor		guibg=#60a060 guifg=#00ff00
-hi Search		guibg=lightslateblue
-hi IncSearch	gui=NONE guibg=steelblue
+hi IncSearch	guibg=lightslateblue
+hi Search		gui=NONE guibg=steelblue
 hi LineNr		guifg=darkgrey
 hi title		guifg=darkgrey
 hi StatusLineNC	gui=NONE guifg=lightblue guibg=darkblue

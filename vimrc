@@ -101,14 +101,14 @@ if $VIM_UTILS_PATH != ""
 endif
 " set colorcolumn=110 "shows color column at 110
 if g:os == "mac"
-  set guifont=Fira\ Mono:h17,Inconsolata:h17
-  set printfont=Fira\ Mono:h12,Inconsolata:h12
+  set guifont=FiraCode\ Nerd\ Font:h17,Fira\ Mono:h17,Inconsolata:h17
+  set printfont=FiraCode\ Nerd\ Font:h12,Fira\ Mono:h12,Inconsolata:h12
 elseif g:os == "arch"
   set guifont=FiraCode\ Nerd\ Font\ 12,Inconsolata\ 12
   set printfont=FiraCode\ Nerd\ Font\ 12,Inconsolata\ 12
 else
-  set guifont=Fira\ Mono\ 14,Inconsolata\ 16
-  set printfont=Fira\ Mono\ 12,Inconsolata\ 12
+  set guifont=FiraCode\ Nerd\ Font\ 14,Fira\ Mono\ 14,Inconsolata\ 16
+  set printfont=FiraCode\ Nerd\ Font\ 12,Fira\ Mono\ 12,Inconsolata\ 12
 endif
 set printencoding=latin2
 set printheader=%=%t/%N
@@ -353,6 +353,10 @@ if has("autocmd")
   " position when opening a file.
   autocmd BufReadPost * if line("'\"") > 1 && line("'\"") <= line("$") | exe "normal! g`\"" | endif
 
+  autocmd BufReadPost *
+        \ if getline(1) =~# "<?xml" | setlocal filetype=xml
+        \ | endif
+
   " Fold file, just open fold where the cursor is
   autocmd VimEnter * normal! zvzMzv
 
@@ -407,6 +411,13 @@ if has("autocmd")
   autocmd Syntax * if getfsize(expand("<afile>")) < g:DuzyPlik | syntax sync fromstart | else | syntax sync minlines=3 | endif
 
   augroup END
+
+  augroup GlobalLogDiff
+    autocmd!
+    autocmd Syntax * syntax match logDiff /^\%(\([<>|]\)\1\{6\} .*\)\|^=\{7\}$/
+    autocmd FileType * highlight def link logDiff Error
+  augroup END
+
 endif " has("autocmd")
 " }}}
 " Convenient command to see the difference between the current buffer and the " {{{
@@ -1115,9 +1126,15 @@ noremap           <c-l>   <c-i>
 nnoremap <silent> <Leader>cf  :let @f = expand("%")   <BAR> let @+=@f<CR>
 nnoremap <silent> <Leader>cF  :let @f = expand("%:t") <BAR> let @+=@f<CR>
 nnoremap <silent> <Leader>cFF :let @f = expand("%:p") <BAR> let @+=@f<CR>
-nnoremap          <Leader>/-  /[–—“”]/<CR>
+nnoremap          <Leader>/-  /\m[–—“”’]/<CR>
 nnoremap          <Leader>DD  ggVGd
+nnoremap          <Leader>q   :q!<CR>
+nnoremap          tq          :q!<CR>
+nnoremap          tw          :w!<CR>
 vnoremap <CR> y
+" move to newet jump location with <c-n> (as older with <c-o>), also stores
+" that functionality that is later lost by mapping done for tab (%)
+nnoremap <c-n> <c-i>
 " }}}
 " cd # {{{
 nnoremap <silent> <Leader>tcd  :execute "tcd " . expand("%:p:h")<CR>
@@ -1149,9 +1166,30 @@ nmap TODO O/*<CR>TODO: <CR>*/k$
 nnoremap <Leader>dd o//TB] Dbg<Esc>4bi
 nnoremap <Leader>da A //TB] Dbg<Esc>
 " }}}
+" wrap selected text {{{
+" visual: i {{{
+vnoremap i'       <ESC>g`<i'<ESC>g`>la'<ESC>hvg`<l<ESC>
+vnoremap i"       <ESC>g`<i"<ESC>g`>la"<ESC>hvg`<l<ESC>
+vnoremap i`       <ESC>g`<i`<ESC>g`>la`<ESC>hvg`<l<ESC>
+vnoremap i{       <ESC>g`<i{<ESC>g`>la}<ESC>hvg`<l<ESC>
+vnoremap i(       <ESC>g`<i(<ESC>g`>la)<ESC>hvg`<l<ESC>
+vnoremap i[       <ESC>g`<i[<ESC>g`>la]<ESC>hvg`<l<ESC>
+vnoremap i<       <ESC>g`<i<<ESC>g`>la><ESC>hvg`<l<ESC>
+vnoremap i*       <ESC>g`<i*<ESC>g`>la*<ESC>hvg`<l<ESC>
+vnoremap i_       <ESC>g`<i_<ESC>g`>la_<ESC>hvg`<l<ESC>
+vnoremap i<space> <ESC>g`<i <ESC>g`>la <ESC>hvg`<l<ESC>
+vnoremap i//      <ESC>g`<i/*<ESC>g`>lla*/<ESC>hhvg`<ll<ESC>
+vnoremap i$       <ESC>g`<i${<ESC>g`>lla}<ESC>hvg`<l<ESC>g`>
+vnoremap i2{      <ESC>g`<i{{<ESC>g`>lla}}<ESC>hhvg`<l<ESC>
+vnoremap i{{      <ESC>g`<i{{<ESC>g`>lla}}<ESC>hhvg`<l<ESC>
+vnoremap i``      <ESC>g`<O```<ESC>g`>o```<ESC>kvg`<<ESC>
+vnoremap inf      <ESC>g`<O{noformat}<ESC>g`>o{noformat}<ESC>kvg`<<ESC>
+vnoremap ico      <ESC>g`<O{code}<ESC>g`>o{code}<ESC>kvgk`<<ESC>
+vnoremap iqu      <ESC>g`<O{quote}<ESC>g`>o{quote}<ESC>kvg`<<ESC>
+" }}}
 " adds space&co before and after cursor/selection {{{
-nnoremap <Leader><space> i a 
-vnoremap <Leader><space> `<i `>la hv`<l
+nnoremap <Leader><Leader><space> i a <ESC>
+vnoremap <Leader><Leader><space> <ESC>g`<i <ESC>g`>la <ESC>hvg`<l<ESC>
 
 nmap <Leader><space>( viw<Leader><space>(
 nmap <Leader><space>[ viw<Leader><space>[
@@ -1180,14 +1218,14 @@ nmap <Leader>g' gv<Leader><space>'
 nmap <Leader>g` gv<Leader><space>`
 nmap <Leader>gp viw<Leader><space>p
 
-vnoremap <Leader><space>( `<i(`>la)hv`<l
-vnoremap <Leader><space>[ `<i[`>la]hv`<l
-vnoremap <Leader><space>{ `<i{`>la}hv`<l
-vnoremap <Leader><space>< `<i<`>la>hv`<l
-vnoremap <Leader><space>" `<i"`>la"hv`<l
-vnoremap <Leader><space>' `<i'`>la'hv`<l
-vnoremap <Leader><space>` `<i``>la`hv`<l
-vnoremap <Leader><space>p `>p`.hm>`<P`]l
+vnoremap <Leader><space>( <ESC>g`<i(<ESC>g`>la)<ESC>hvg`<l<ESC>
+vnoremap <Leader><space>[ <ESC>g`<i[<ESC>g`>la]<ESC>hvg`<l<ESC>
+vnoremap <Leader><space>{ <ESC>g`<i{<ESC>g`>la}<ESC>hvg`<l<ESC>
+vnoremap <Leader><space>< <ESC>g`<i<<ESC>g`>la><ESC>hvg`<l<ESC>
+vnoremap <Leader><space>" <ESC>g`<i"<ESC>g`>la"<ESC>hvg`<l<ESC>
+vnoremap <Leader><space>' <ESC>g`<i'<ESC>g`>la'<ESC>hvg`<l<ESC>
+vnoremap <Leader><space>` <ESC>g`<i`<ESC>g`>la`<ESC>hvg`<l<ESC>
+vnoremap <Leader><space>p <ESC>g`>p`.hm>g`<P`]l
 
 vmap 2<Leader><space>( <Leader><space>(gv<Leader><space>(
 vmap 2<Leader><space>[ <Leader><space>[gv<Leader><space>[
@@ -1198,11 +1236,12 @@ vmap 2<Leader><space>' <Leader><space>'gv<Leader><space>'
 vmap 2<Leader><space>` <Leader><space>`gv<Leader><space>`
 vmap 2<Leader><space>p <Leader><space>pgv<Leader><space>p
 " }}}
+" }}}
 " Comments {{{
 " surrounds selected block with /*...*/
-vnoremap /* `>a*/`<i/*
+vnoremap /* <ESC>g`>a*/<ESC>g`<i/*<ESC>
 " adds // at the beginning of each line in the selected block
-vnoremap // '<'>\|I//
+vnoremap // <ESC>g'<'>\|I//<ESC>
 " }}}
 " Fold {{{
 noremap  <Leader>{ mmA # {{{<ESC>`mmm
@@ -1307,7 +1346,9 @@ vnoremap <silent> <C-k> :m '<-2<CR>gv=gv
 " }}}
 " Very magic searching {{{
 " nnoremap / /\v
+" nnoremap ? ?\v
 " vnoremap / /\v
+" vnoremap ? ?\v
 " }}}
 " Buffer naviation {{{
 nmap <M-Left> :bprevious<CR>
@@ -1398,7 +1439,7 @@ nnoremap <C-q><C-l> <C-w>l
 nnoremap <silent> <C-q><Space> :MaximizerToggle<CR>
 " }}}
 " Open a Quickfix window for the last search. {{{
-nnoremap <silent> <leader>q/ :execute 'vimgrep /'.@/.'/g %'<CR>:copen<CR>
+nnoremap <silent> <leader>// :execute 'vimgrep /'.@/.'/g %'<CR>:copen<CR>
 " }}}
 " shortcuts in diff {{{
 autocmd FilterWritePre * if &diff | exe 'nnoremap <space> ]cz.' | exe 'nnoremap <S-space> [cz.' | endif
@@ -1494,15 +1535,16 @@ nmap <Leader>ve   <C-W><C-V><Bar>:call TBOpenFile()<CR>
 " }}}
 " }}}
 " Menu {{{
-" Menu - Substite {{{
-nmenu My.Substitute.-SpacesAtTheEnd :%s/\v\s+$//g<CR>                                   " removes spaces at the end of lines
-nmenu My.Substitute.-FileLoc :%s/^[^ :]\+:\d\+://<CR>                                   " removes file location (e.g. grep input)
-nmenu My.Substitute.-EmptyLines :g/^\s*$/ d<CR>                                         " removes empty lines
-nmenu My.Substitute.-Hashes :%s/^\x\{5,\}\~: //                                         " removes hash of a line
-nmenu My.Substitute.-HiglightedTexts :%s///g<CR>                                        " removes highlighted text
-nmenu My.Substitute.Tab2Spaces :%s/\t/  /<CR>                                           " replaces tabs with 2 spaces: [\t]->[  ]
-nmenu My.Substitute.VIS-FirstLetterUpper :`<,`>s/\<\(\w\)\(\w*\)\>/\u\1\L\2/g<CR>       " makes First letter in a word uppercase, rest of them lowercase in a visual block
-nmenu My.Substitute.ChangeSlashes :%s#\\#/#g<CR>                                        " replaces \ with /: [\]->[/]
+" Menu - Substitute {{{
+nmenu My.Substitute.SpacesAtTheEnd- :%s/\v\s+$//<CR>                                  " removes spaces at the end of lines
+nmenu My.Substitute.Ansi- :%s/\e\[[0-9;]*[mMGKJ]//<CR>                                " removes ansi special seq.
+nmenu My.Substitute.FileLoc- :%s/^[^ :]\+:\d\+://<CR>                                 " removes file location (e.g. grep input)
+nmenu My.Substitute.EmptyLines- :g/^\s*$/ d<CR>                                       " removes empty lines
+nmenu My.Substitute.Hashes- :%s/^\x\{5,\}\~: //<CR>                                   " removes hash of a line
+nmenu My.Substitute.HiglightedTexts- :%s///<CR>                                       " removes highlighted text
+nmenu My.Substitute.Tab2Spaces :%s/\t/  /<CR>                                         " replaces tabs with 2 spaces: [\t]->[  ]
+nmenu My.Substitute.VIS-FirstLetterUpper :`<,`>s/\<\(\w\)\(\w*\)\>/\u\1\L\2/<CR>      " makes First letter in a word uppercase, rest of them lowercase in a visual block
+nmenu My.Substitute.ChangeSlashes :%s#\\#/#<CR>                                       " replaces \ with /: [\]->[/]
 " }}}
 nmenu My.NewTab.vimrc :tabedit $MYVIMRC<CR>
 nmenu My.NewTab.misc_info :tabedit $SCRIPT_PATH/../info/readme.md<CR>
@@ -1543,8 +1585,8 @@ nmenu My.Explorer.CurrentDir :edit %:p:h<CR>
 nmenu My.Explorer.CurrentDir-cd :cd %:p:h<CR>
 " }}}
 " Menu - Find {{{
-nmenu My.Find.Merge /^\%(\([<<Bar>>]\)\1\{6\} \)\<Bar>\%(=\{7\}\)<CR>
-nmap <F12>d /^\%(\([<<Bar>>]\)\1\{6\} \)\<Bar>^\%(=\{7\}\)$<CR>
+nmenu My.Find.Merge /\m^\%(\([<<Bar>>]\)\1\{6\} \)\<Bar>\%(=\{7\}\)<CR>
+nmap <F12>d /\m^\%(\([<<Bar>>]\)\1\{6\} \)\<Bar>^\%(=\{7\}\)$<CR>
 nmenu My.Find.Grep :lvimgrep // %<Left><Left><Left>
 " }}}
 " }}}
@@ -1717,8 +1759,6 @@ if $FZF_INSTALLED ==? "true"
   nnoremap          ,a/             :Ag <c-r>/<CR>
   nnoremap          <Leader>a       :Ag 
   nnoremap <silent> ,a              :Ag<CR>
-  nnoremap <silent> <Leader><c-a>   :Ag<CR>
-  nnoremap          ,,bt            :BTags <c-r>=expand("<cword>")<cr><CR>
   nnoremap <silent> ,h              :History<CR>
   nnoremap <silent> ,/              :History/<CR>
   nnoremap <silent> ,:              :History:<CR>
@@ -1729,7 +1769,10 @@ if $FZF_INSTALLED ==? "true"
   nnoremap <silent> ,t              :Windows<CR>
   nnoremap <silent> ,w              :Buffers<CR>
   nnoremap <silent> ,b              :Windows<CR>
+  nnoremap          ,,bt            :BTags <c-r>=expand("<cword>")<cr><CR>
   nnoremap          ,,ta            :Tags<space>
+  nnoremap <silent> /?              :History/<CR>
+  nnoremap <silent> ;:              :History:<CR>
   let g:fzf_colors = {
       \ 'hl':      ['fg', 'Search'],
       \ 'fg':      ['fg', 'Normal', 'CursorColumn', 'Normal'],

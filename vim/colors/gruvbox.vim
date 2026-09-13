@@ -131,6 +131,8 @@ let s:gb.faded_purple   = ['#8f3f71', 96]      " 143-63-113
 let s:gb.faded_aqua     = ['#427b58', 66]      " 66-123-88
 let s:gb.faded_orange   = ['#af3a03', 130]     " 175-58-3
 
+let s:gb.search         = ['#d65d0e', 136]     " 214-93-14
+
 " }}}
 " Setup Emphasis: {{{
 
@@ -507,8 +509,9 @@ call s:HL('SpecialKey', s:yellow, s:bg1)
 call s:HL('Visual',    s:none,  s:bg3, s:invert_selection)
 hi! link VisualNOS Visual
 
-call s:HL('Search',    s:yellow, s:bg0, s:inverse)
-call s:HL('IncSearch', s:hls_cursor, s:bg0, s:inverse)
+call s:HL('IncSearch',    s:yellow, s:bg0, s:inverse)
+call s:HL('Search',       s:gb.search, s:bg0, s:inverse)
+call s:HL('CurSearch',    s:yellow, s:bg0, s:inverse)
 
 call s:HL('Underlined', s:blue, s:none, s:underline)
 

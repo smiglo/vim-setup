@@ -61,12 +61,13 @@ syn match logMyFunc     /\<BB\>\|\<AA\>\|\<TT\>/     skipwhite contained
 syn match logMyErr      /\<EE\>\|\<FF\>/             skipwhite contained
 syn match logMyImp      /\<IMP\> /                   skipwhite contained
 
+syn match logFile       /^\%(\d\+-\d\+:\)\@![A-Za-z0-9_/~%\-\.]\{5,\}:\%(\d\+[:-]\)\?/      conceal cchar=- contains=logLine
+syn match logLine       /\d\+[:-]/                                        contained
 syn match logTime       /^\d\d:\d\d:\d\d/
 syn match logTime       /\s*\<\d\d:\d\d:\d\d\>/
 syn match logTime       /\s*\<\d\{8\}-\d\{6\}\>/
-syn match logTime2      /\d\{6\}-\d\d:\d\d:\d\d\%(\.\d\{6\}\)\?\s*/       conceal cchar=␥
-syn match logFile       /^[A-Za-z0-9_/~%\-\.]\{5,\}:\%(\d\+[:-]\)\?/      conceal cchar=- contains=logLine
-syn match logLine       /\d\+[:-]/                                        contained
+syn match logTime2      /\d\{6\}-\d\d:\d\d:\d\d\%(\.\d\{3,\}\)\?:\?/   conceal cchar=␥
+syn match logTime2      /\d\{8\}-\d\{6\}\%(\.\d\{3,\}\)\?:\?/          conceal cchar=␥
 
 syn match logComment    /^# .*\|^\/\/.*/          contains=logMy,logKeyword,logKeyword2
     " was:   /^# [^{}].*\|^\/\/.*/
