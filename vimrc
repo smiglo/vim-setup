@@ -919,11 +919,13 @@ function! TBTmuxSplit(...) " {{{
   let dir  = '-v'
   let epar = ''
   let wnd  = 0
+  let pup  = 0
   if has_key(l:params, 'd')
     if     l:params['d'] == '-' || l:params['d'] == 'v' | let dir='-v' | let p=30
     elseif l:params['d'] == '|' || l:params['d'] == 'h' | let dir='-h' | let p=50
     endif
   endif
+  if has_key(l:params, 'pup') | let pup  = 1 | endif
   if has_key(l:params, 'wnd') | let wnd  = l:params['wnd'] | endif
   if has_key(l:params, 'dir') | let fdir = l:params['dir'] | endif
   if has_key(l:params, 'p')   | let p    = l:params['p']   | endif
@@ -933,7 +935,9 @@ function! TBTmuxSplit(...) " {{{
   else
     let p = '-p' . l:p
   endif
-  if l:wnd == 0
+  if l:pup == 1
+    execute 'silent !tmux-popup -t \' . $TMUX_PANE . ' -E --src "' . l:fdir . '"'
+  elseif l:wnd == 0
     execute 'silent !tmux split-window ' . l:dir . ' ' . l:p . ' -c "' . l:fdir . '"' . ' ' . l:epar
   else
     execute 'silent !tmux new-window -a -c "' . l:fdir . '"' . ' ' . l:epar
@@ -945,6 +949,7 @@ nnoremap <silent> <C-q>\    :call TBTmuxSplit({'d': '<Bar>'})<CR>
 nnoremap <silent> <C-q>l    :call TBTmuxSplit({'d': '<Bar>', 'par': 'git l ' . expand('%:t')})<CR>
 nnoremap <silent> <C-q>L    :call TBTmuxSplit({'d': '<Bar>', 'par': 'git l ' . expand('%:p:h')})<CR>
 nnoremap <silent> <C-q><CR> :call TBTmuxSplit({'wnd': '1'})<CR>
+nnoremap <silent> <C-q>/    :call TBTmuxSplit({'pup': '1'})<CR>
 " }}}
 " Send To Pane " {{{
 function! TBSendToPaneCompl(A, L, P) " {{{
