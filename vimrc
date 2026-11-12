@@ -367,7 +367,7 @@ if has("autocmd")
         \ | nnoremap <buffer> <silent> q<CR> :quit<CR>
         \ | endif
 
-  if exists(':Terminal')
+  if exists(':terminal')
     autocmd TerminalOpen *
             \ if index(['nofile', 'terminal'], &buftype) >= 0 || index(['qf', 'help', 'nofile'], &filetype) >= 0
             \ | setlocal cursorline
@@ -386,6 +386,7 @@ if has("autocmd")
   autocmd BufReadPost * if expand("<afile>") =~# ".*/grep-last/.*" | setlocal filetype=default | endif
 
   autocmd BufNewFile,BufRead *.service  setf systemd
+  autocmd BufNewFile,BufRead .env set filetype=sh
 
   " Session stuff
   autocmd VimEnter    * if ! exists("g:TBSessionDir") || ! isdirectory(g:TBSessionDir) | let g:TBSessionDir = getcwd() | endif
@@ -399,6 +400,8 @@ if has("autocmd")
 
   autocmd FileType arduino set filetype=cpp
   autocmd FileType c set filetype=cpp
+
+  autocmd FileType markdown setlocal textwidth=120 cursorline
 
   autocmd TabLeave * if ! exists("SessionLoad") | let g:LastTab = tabpagenr() | endif
 
@@ -919,11 +922,13 @@ function! TBTmuxSplit(...) " {{{
   let dir  = '-v'
   let epar = ''
   let wnd  = 0
+  let pup  = 0
   if has_key(l:params, 'd')
     if     l:params['d'] == '-' || l:params['d'] == 'v' | let dir='-v' | let p=30
     elseif l:params['d'] == '|' || l:params['d'] == 'h' | let dir='-h' | let p=50
     endif
   endif
+  if has_key(l:params, 'pup') | let pup  = 1 | endif
   if has_key(l:params, 'wnd') | let wnd  = l:params['wnd'] | endif
   if has_key(l:params, 'dir') | let fdir = l:params['dir'] | endif
   if has_key(l:params, 'p')   | let p    = l:params['p']   | endif
@@ -933,7 +938,9 @@ function! TBTmuxSplit(...) " {{{
   else
     let p = '-p' . l:p
   endif
-  if l:wnd == 0
+  if l:pup == 1
+    execute 'silent !tmux-popup -t \' . $TMUX_PANE . ' -E --src "' . l:fdir . '" &'
+  elseif l:wnd == 0
     execute 'silent !tmux split-window ' . l:dir . ' ' . l:p . ' -c "' . l:fdir . '"' . ' ' . l:epar
   else
     execute 'silent !tmux new-window -a -c "' . l:fdir . '"' . ' ' . l:epar
@@ -945,6 +952,7 @@ nnoremap <silent> <C-q>\    :call TBTmuxSplit({'d': '<Bar>'})<CR>
 nnoremap <silent> <C-q>l    :call TBTmuxSplit({'d': '<Bar>', 'par': 'git l ' . expand('%:t')})<CR>
 nnoremap <silent> <C-q>L    :call TBTmuxSplit({'d': '<Bar>', 'par': 'git l ' . expand('%:p:h')})<CR>
 nnoremap <silent> <C-q><CR> :call TBTmuxSplit({'wnd': '1'})<CR>
+nnoremap <silent> <C-q>/    :call TBTmuxSplit({'pup': '1'})<CR>
 " }}}
 " Send To Pane " {{{
 function! TBSendToPaneCompl(A, L, P) " {{{
@@ -1116,7 +1124,6 @@ nnoremap v/ :VG <C-R><C-R>/<CR>
 nnoremap <silent> <F12>cl       :if &conceallevel == 1 <Bar> setlocal conceallevel=0 <Bar> else <Bar> setlocal conceallevel=1 <Bar> endif<CR>
 nnoremap <silent> <F12>gf       :execute 'silent !tmux set-buffer "' . expand('%:p:~') . '"' <Bar> redraw!<CR>
 nnoremap          <F12>h        :Map<CR>
-nnoremap          <Leader>ttt   :terminal<CR>
 nnoremap <silent> <F6>          :redraw!<CR>
 nnoremap <silent> <F12>s        :exe "tabn " . g:LastTab <BAR> let this_tab = bufname('%') <BAR> exe "tabn " . g:LastTab <BAR> exe 'vsplit ' . this_tab <BAR> exe "tabclose " . g:LastTab <BAR> unlet this_tab<CR>
 nnoremap <silent> <leader>\cd   :cd $PWD<CR>
@@ -1140,6 +1147,11 @@ nnoremap <c-n> <c-i>
 nnoremap <silent> <Leader>tcd  :execute "tcd " . expand("%:p:h")<CR>
 nnoremap <silent> <Leader>lcd  :execute "tcd " . expand("%:p:h")<CR>
 nnoremap <silent> <Leader>mcd  :execute "cd "  . g:TBSessionDir<CR>
+" }}}
+" terminal {{{
+nnoremap <Leader>T  :terminal<CR>
+nnoremap <Leader>TT :terminal 
+" tnoremap <Esc><Esc> <C-\><C-N>
 " }}}
 " Arrow keys disabled {{{
 nnoremap <up> <nop>
@@ -1188,8 +1200,10 @@ vnoremap ico      <ESC>g`<O{code}<ESC>g`>o{code}<ESC>kvgk`<<ESC>
 vnoremap iqu      <ESC>g`<O{quote}<ESC>g`>o{quote}<ESC>kvg`<<ESC>
 " }}}
 " adds space&co before and after cursor/selection {{{
-nnoremap <Leader><Leader><space> i a <ESC>
-vnoremap <Leader><Leader><space> <ESC>g`<i <ESC>g`>la <ESC>hvg`<l<ESC>
+nnoremap <Leader><space>        i a <ESC>h
+nnoremap <Leader><space><space> i a <ESC>h
+vnoremap <Leader><space>        <ESC>g`<i <ESC>g`>la <ESC>hvg`<l<ESC>
+vnoremap <Leader><space><space> <ESC>g`<i <ESC>g`>la <ESC>hvg`<l<ESC>
 
 nmap <Leader><space>( viw<Leader><space>(
 nmap <Leader><space>[ viw<Leader><space>[
@@ -1351,8 +1365,9 @@ vnoremap <silent> <C-k> :m '<-2<CR>gv=gv
 " vnoremap ? ?\v
 " }}}
 " Buffer naviation {{{
-nmap <M-Left> :bprevious<CR>
-nmap <M-Right> :bnext<CR>
+nnoremap <silent> [b :bprevious<CR>
+nnoremap <silent> ]b :bnext<CR>
+nnoremap <silent> <leader>bd :bdelete<CR>
 " }}}
 " Undo in insert mode. {{{
 imap <c-z> <c-o>u
@@ -1616,6 +1631,9 @@ if filereadable("./.vim/vimrc")
 endif
 " }}}
 " Plugins {{{
+" netRW {{{
+let g:netrw_silent = 1
+" }}}
 " OmniCppComplete {{{
 let OmniCpp_NamespaceSearch = 1
 let OmniCpp_GlobalScopeSearch = 1
@@ -1652,9 +1670,15 @@ else
         \   'member': 'Identifier',
         \ }
   for tokenType in keys( MY_YCM_HIGHLIGHT_GROUP )
-    call prop_type_add( 'YCM_HL_' . tokenType,
-                      \ { 'highlight': MY_YCM_HIGHLIGHT_GROUP[ tokenType ] } )
+    let prop_name = 'YCM_HL_' . tokenType
+    let props = { 'highlight': MY_YCM_HIGHLIGHT_GROUP[ tokenType ] }
+    if empty( prop_type_get( prop_name ) )
+      call prop_type_add( prop_name, props )
+    else
+      call prop_type_change( prop_name, props )
+    endif
   endfor
+  unlet prop_name props
   let g:syntastic_error_symbol = '✗'
   let g:syntastic_warning_symbol = '⚠'
   let g:ycm_key_list_select_completion = ['<TAB>', '<Down>']
@@ -1720,6 +1744,8 @@ let g:bufExplorerSortBy='name'       " Sort by the buffer's name.
 nnoremap <silent> <F10>bb :BufExplorerVerticalSplit<CR>
 nnoremap <silent> <F10>bt :ToggleBufExplorer<CR>
 nnoremap <silent> <F10>bh :BufExplorerHorizontalSplit<CR>
+nnoremap <silent> <leader>bb :BufExplorerVerticalSplit<CR>
+nnoremap <silent> <leader>bt :ToggleBufExplorer<CR>
 " }}}
 " Tagbar {{{
 nnoremap <silent> <F10>T :TlistToggle<CR>
@@ -1759,7 +1785,9 @@ if $FZF_INSTALLED ==? "true"
   nnoremap          ,a/             :Ag <c-r>/<CR>
   nnoremap          <Leader>a       :Ag 
   nnoremap <silent> ,a              :Ag<CR>
+  nnoremap <silent> ,b              :Buffers<CR>
   nnoremap <silent> ,h              :History<CR>
+  nnoremap <silent> ,j              :Jumps<CR>
   nnoremap <silent> ,/              :History/<CR>
   nnoremap <silent> ,:              :History:<CR>
   nnoremap <silent> ,;              :History:<CR>
@@ -1767,8 +1795,7 @@ if $FZF_INSTALLED ==? "true"
   nnoremap <silent> ,M              :Maps<CR>
   nnoremap <silent> <Leader>t       :Windows<CR>
   nnoremap <silent> ,t              :Windows<CR>
-  nnoremap <silent> ,w              :Buffers<CR>
-  nnoremap <silent> ,b              :Windows<CR>
+  nnoremap <silent> ,w              :Windows<CR>
   nnoremap          ,,bt            :BTags <c-r>=expand("<cword>")<cr><CR>
   nnoremap          ,,ta            :Tags<space>
   nnoremap <silent> /?              :History/<CR>
@@ -1783,6 +1810,23 @@ if $FZF_INSTALLED ==? "true"
       \ 'pointer': ['fg', 'Identifier'],
       \ 'marker':  ['fg', 'Keyword'],
       \ }
+  function! FzfSmartFileOpen(dir, exact_match, bang)
+    let l:query = expand('<cWORD>')
+    let l:query = substitute(l:query, '^.\{-}://', '', '') " e.g. file://
+    let l:query = substitute(l:query, ':.*$', '', '') " line numbers
+    let l:query = substitute(l:query, '[''"`)\]}>,;-]\+$', '', '')
+    let l:query = substitute(l:query, '^[''"`(\[{<,;-]\+', '', '')
+    " echomsg "f:[" . l:query . "]"
+    if a:exact_match && filereadable(l:query)
+      execute "normal! \<C-w>gF"
+      return
+    endif
+    call fzf#vim#files(a:dir, {'options': ['--prompt', "? ", '--query', l:query, '--preview-window', 'nohidden']}, a:bang)
+  endfunction
+  command! -bang -nargs=? -complete=dir FileOpenExact call FzfSmartFileOpen(<q-args>, 1, <bang>0)
+  command! -bang -nargs=? -complete=dir FileOpenFZF   call FzfSmartFileOpen(<q-args>, 0, <bang>0)
+  nnoremap <silent> <F2>   :FileOpenExact<CR>
+  nnoremap <silent> <S-F2> :FileOpenFZF<CR>
 endif
 " }}}
 " Clever-F {{{
