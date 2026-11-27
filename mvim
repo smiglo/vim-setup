@@ -44,8 +44,8 @@ name="$(basename "$0")"
 parsing_parameters=true
 open_file_method="-p"
 check_session_file=false
-opts=
-optsEnd=
+opts=()
+optsEnd=()
 diff_mode=false
 diff_mode_ext=
 show_diff=false
@@ -57,9 +57,19 @@ use_gui=${VIM_USE_GUI:-false}
 case "$name" in
 m*|g*|r*|_m*|_g*|_r*) use_gui=true;;
 esac # }}}
-# Completion # {{{
+# @@: Completion # {{{
 if [[ "$1" == "@@" ]]; then
   ret_val=
+  case $name in
+  vimdiffdir | vdd) # {{{
+    echo "PWD"
+    if [[ -n $TMUX ]]; then
+      cPane="$(tmux display-message -t $TMUX_PANE -pF '#S:#I.#P')"
+      tmux list-panes -aF 'T:#S:#I.#P' | grep -v "^T:$cPane$"
+      tmux list-panes -F  't:.#P' | grep -v "^t:.${cPane##*.}$"
+    fi
+    exit;; # }}}
+  esac
   case $3 in
   --type) # {{{
     ret_val="$(declare -F | awk '{print $3}' | command grep "^[^_]" | sort -u)";; # }}}
@@ -153,16 +163,30 @@ if $use_gui; then # {{{
   case "$name" in
   m*|g*|r*|_m*|_g*|_r*)
     open_file_method="--remote-tab-silent"
-    opts="-g $opts --servername $server_name";;
+    opts=( -g "${opts[@]}" --servername $server_name );;
   esac # }}}
 fi # }}}
 # Options for each of vim modes # {{{
 case "$name" in
 _*|*vimdiff*) open_file_method='';;&
-vimdiffgit)   opts+=" -c FastVim";;&
+_vimdiffgit)  opts+=( -c FastVim );;&
+vimdiffdir | vdd) # {{{
+  src="$1" dst="$2"
+  if (( $# == 1 )); then
+    src="$PWD"
+    dst="$1"
+    case $dst in
+    t:* | T:*) dst="$(tmux display-message -t ${dst#*:} -pF '#{pane_current_path}' 2>/dev/null)";;
+    esac
+  fi
+  [[ -e $src ]] || die "dir not exists: $src"
+  [[ -e $dst ]] || die "dir not exists: $dst"
+  shift $#
+  opts+=( -c FastVim)
+  opts+=( -c ":DirDiff $src $dst");; # }}}
 *vimdiff*)    diff_mode=true;;
-*view)        opts+=" -R";;
-*ex)          opts+=" -e";;
+*view)        opts+=( -R );;
+*ex)          opts+=( -e );;
 *-session | vimS) # {{{
   [[ -e "./.vim" ]] && d="./.vim/" || d="./Session-"
   sessionFile="$1"
@@ -216,7 +240,7 @@ vimdiffgit)   opts+=" -c FastVim";;&
     ( sleep 5; rm -f $sessionFile ) &
     disown
   fi
-  opts+=" -S \"$sessionFile\""
+  opts+=( -S "$sessionFile" )
   ;; # }}}
 esac # }}}
 [[ $@ =~ REMOTE && $@ =~ LOCAL && $@ =~ BASE ]] && git_merge_mode=true && open_file_method=
@@ -243,8 +267,8 @@ if $parsing_parameters; then # {{{
       stdinRedit="</dev/tty"
     else
       stdin=true
-      [[ " $@ " == *\ -\ * ]] || opts+=" -"
-      [[ " $@ " == *\ --Fast\ * ]] || opts+=" -c FastVim"
+      [[ " $@ " == *\ -\ * ]] || opts+=( - )
+      [[ " $@ " == *\ --Fast\ * ]] || opts+=( -c FastVim)
     fi
     [[ $1 == '-' ]] && shift
   fi # }}}
@@ -258,29 +282,29 @@ if $parsing_parameters; then # {{{
       --session) # {{{
         check_session_file=true;; # }}}
       -f1)    files+=( "$2/${files[-1]}" ); shift;;
-      -S)     opts+=" $1 $2"; shift;;
-      -cl)    opts+=" -c 'set cursorline'";;
-      -1l | -gg) opts+=" -c 'normal gg'";;
-      -ll | -G ) opts+=" -c 'normal G'";;
+      -S)     opts+=( -S "$2" ); shift;;
+      -cl)    opts+=( -c "set cursorline" );;
+      -1l | -gg) opts+=( -c "normal gg" );;
+      -ll | -G ) opts+=( -c "normal G" );;
       --show-diff | --diff)
         diff_mode=true
         [[ $1 == '--show-diff' ]] && show_diff=true;;
-      --edit) opts+=" -c startinsert";;
-      --editor) opts+=" -c FastBuffer -c 'set cursorline' -p"; open_file_method="";;
-      +files) ! $stdin && [[ -z $2 ]] && optsEnd+=" -c :Files";;
-      --Fast) opts+=" -c FastVim";;
-      --fast-quit) opts+=" -c FastBuffer";;
-      --fast-save) opts+=" -c FastVimSave";;
+      --edit) opts+=( -c startinsert );;
+      --editor) opts+=( -c FastBuffer -c "set cursorline" -p ); open_file_method="";;
+      +files) ! $stdin && [[ -z $2 ]] && optsEnd+=( -c :Files );;
+      --Fast) opts+=( -c FastVim);;
+      --fast-quit) opts+=( -c FastBuffer );;
+      --fast-save) opts+=( -c FastVimSave );;
       -f | --files) ;; # already consumed
       --fast) # {{{
         if ${VIM_USE_FAST_SAVE:-false}; then
-          opts+=" -c FastVimSave"
+          opts+=( -c FastVimSave )
         else
-          opts+=" -c FastBuffer"
+          opts+=( -c FastBuffer )
         fi;; # }}}
       --scratch | -) # {{{
-        opts+=" -c ScratchBuffer"
-        [[ $1 == '-' ]] && opts+=" $1";; # }}}
+        opts+=( -c ScratchBuffer )
+        [[ $1 == '-' ]] && opts+=( "-" );; # }}}
       --which) # {{{
         shift
         files=( "$(which $1 2>/dev/null)" )
@@ -303,18 +327,7 @@ if $parsing_parameters; then # {{{
         fi # }}}
         exit 0
         ;; # }}}
-      -c) # {{{
-        if [[ $2 != \'* && $2 != \"* ]]; then
-          opts+=" -c \"$2\""
-          shift
-        else
-          opts+=" -c"
-          while [[ ! -z $2 ]]; do
-            opts+=" $2"
-            shift
-            [[ $2 == *\' && $2 == *\" ]] && break
-          done
-        fi;; # }}}
+      -c) opts+=( -c "$2" ); shift;;
       --sort) # {{{
         addEval=true; evalPred[${#evalPred[@]}]="sort";; # }}}
       --path) # {{{
@@ -339,9 +352,9 @@ if $parsing_parameters; then # {{{
           -e | --ext) shift; diff_mode_ext="${1#.}"; arg=;;
           esac
         fi
-        [[ ! -z $arg ]] && opts+=" $arg";; # }}}
-      ++*) opts+=" +\"execute 'normal! ${1#++}'\"";;
-      +*)  opts+=" \"$1\"";;
+        [[ -n $arg ]] && opts+=( "$arg" );; # }}}
+      ++*) opts+=( +"execute 'normal! ${1#++}'" );;
+      +*)  opts+=( "$1" );;
       *) # {{{
         arg="$1"
         if $diff_mode; then
@@ -356,14 +369,15 @@ if $parsing_parameters; then # {{{
     if $addEval; then # {{{
       set -- "${evalPred[@]}" "$@"
       if ! $stdin; then # {{{
-        opts+=" $open_file_method"
+        opts+=( $open_file_method )
+        open_file_method=
         for f in ${!files[*]}; do
           f=${files[$f]}
-          opts+=" <(cat $f"
+          opts+=( "<(cat" "$f" )
           for a; do
-            [[ ! -z $a ]] && opts+=" | $a"
+            opts+=( "|" "$a" )
           done
-          opts+=")"
+          opts+=( ")" )
         done # }}}
       else # {{{
         bbinary=
@@ -375,10 +389,10 @@ if $parsing_parameters; then # {{{
       files=
       shift $#
     fi # }}}
-    [[ ! -z ${files[*]} ]] && opts+=" $open_file_method"
+    [[ ! -z ${files[*]} ]] && opts+=( $open_file_method )
   fi # }}}
   if $check_session_file; then # {{{
-    if [[ $opts != *-S\ * ]]; then
+    if [[ ${opts[@]} != *-S\ * ]]; then
       suffixes=".as.vim .vim"
       if [[ -n $TMUX ]]; then
         wName="$(tmux display-message -pF '#W')" && wName="${wName,,}"
@@ -392,7 +406,7 @@ if $parsing_parameters; then # {{{
         esac
         for s in $suffixes; do
           if [[ -e $d/$prefix$s ]]; then
-            opts+=" -S $d/$prefix$s"
+            opts+=( -S "$d/$prefix$s" )
             break 2
           fi
         done
@@ -417,15 +431,16 @@ if $diff_mode; then
       [[ -f $f ]] || { areAllFiles=false; break; }
     done
     if $areAllFiles; then
-      eval command diff -q ${files[*]@Q} >/dev/null 2>&1 && echor "Files are the same" && exit 0
+      command diff -q "${files[@]}" >/dev/null 2>&1 && echor "Files are the same" && exit 0
     fi
   fi
-  opts+=" -dO -c FastVim"
+  opts+=( -dO -c FastVim )
 fi
 if $git_merge_mode; then
-  opts="${opts%\"*} | set cursorline | let @/='"'^\\%(\\([<\\|>]\\)\\1\\{6\\} \\)\\|^\\%(=\\{7\\}\\)$'"' \""
+  opts+=( -c "set cursorline | let @/='^\\%(\\([<\\|>]\\)\\1\\{6\\} \\)\\|^\\%(=\\{7\\}\\)$'")
+  stdinRedit="</dev/tty"
 fi
-echorm "$binary $opts $optsEnd ${files[*]@Q} $stdinRedit"
+echorm "$binary ${opts[@]} ${optsEnd[@]} ${files[@]} $stdinRedit"
 type -p set-title-pane >/dev/null 2>&1 && export VIM_TITLE="vim: $(set-title-pane --get)"
-eval "$binary" $opts $optsEnd ${files[*]@Q} $stdinRedit
+exec "$binary" "${opts[@]}" "${optsEnd[@]}" "${files[@]}" $stdinRedit
 # }}}

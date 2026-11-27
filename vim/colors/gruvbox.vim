@@ -519,6 +519,8 @@ call s:HL('StatusLine',   s:bg3, s:fg1, s:inverse)
 call s:HL('StatusLineNC', s:bg1, s:fg4, s:inverse)
 call s:HL('StatusLineMark', s:bg1, s:green, s:bold)
 call s:HL('StatusLineLoc',  s:bg1, s:fg1, s:inverse)
+call s:HL('StatusLineTerm',   s:bg3, s:fg1, s:inverse)
+call s:HL('StatusLineTermNC', s:bg1, s:fg4, s:inverse)
 
 call s:HL('logMy', s:green)
 call s:HL('_m1', s:red, s:bg2)

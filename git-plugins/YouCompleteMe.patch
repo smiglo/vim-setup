@@ -1,0 +1,20 @@
+--- autoload/youcompleteme.vim	2026-11-17 15:06:54.279958206 +0100
++++ ../../vim/autoload/youcompleteme.vim	2026-11-17 15:09:54.508390378 +0100
+@@ -265,13 +265,16 @@
+ 
+ 
+ function! s:SetUpPython() abort
++let g:ycm_folder = get(g:, 'ycm_folder', "")
+   py3 << EOF
+ import os.path as p
+ import sys
+ import traceback
+ import vim
+ 
+-root_folder = p.normpath( p.join( vim.eval( 's:script_folder_path' ), '..' ) )
++root_folder = vim.eval( 'g:ycm_folder' )
++if not root_folder:
++  root_folder = p.normpath( p.join( vim.eval( 's:script_folder_path' ), '..' ) )
+ third_party_folder = p.join( root_folder, 'third_party' )
+ 
+ # Add dependencies to Python path.
